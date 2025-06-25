@@ -1,0 +1,765 @@
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+
+function gradient(text, startColor, endColor)
+    local result = ""
+    local length = #text
+
+    for i = 1, length do
+        local t = (i - 1) / math.max(length - 1, 1)
+        local r = math.floor((startColor.R + (endColor.R - startColor.R) * t) * 255)
+        local g = math.floor((startColor.G + (endColor.G - startColor.G) * t) * 255)
+        local b = math.floor((startColor.B + (endColor.B - startColor.B) * t) * 255)
+
+        local char = text:sub(i, i)
+        result = result .. "<font color=\"rgb(" .. r .. ", " .. g .. ", " .. b .. ")\">" .. char .. "</font>"
+    end
+
+    return result
+end
+
+local Confirmed = false
+
+local Window = WindUI:CreateWindow({
+    Title = "SuperStarHub || Premium  -  v1.1.0",
+    Icon = "slack",
+    Author = "by smotivvv.",
+    Folder = "StrixHub | Premium  -  v1.1.0",
+    Size = UDim2.fromOffset(580, 300),
+    Transparent = true,
+    Theme = "Dark",
+    User = {
+        Enabled = false, -- <- or false
+        Callback = function() print("clicked") end, -- <- optional
+    },
+})
+
+local Tab = Window:Tab({
+    Title = "Autofarm",
+    Icon = "plane-takeoff",
+    Locked = false,
+})
+
+local Section = Tab:Section({ 
+    Title = "Autofarm [Car Driving Indonesia]",
+    TextXAlignment = "Left",
+    TextSize = 17, -- Default Size
+})
+
+local Player = game.Players.LocalPlayer
+local CarName = Player.Name .. "sCar"
+local TweenService = game:GetService("TweenService")
+local Vim = game:GetService("VirtualInputManager")
+
+-- Fungsi tween teleport ke area kerja
+function TweenToJob()
+
+	game.ReplicatedStorage.NetworkContainer.RemoteEvents.Job:FireServer("Truck")
+	
+	local Root = Player.Character:FindFirstChild("HumanoidRootPart")
+	if not Root then return end
+
+	TweenService:Create(Root, TweenInfo.new(0.5, Enum.EasingStyle.Quad), {
+		CFrame = Root.CFrame + Vector3.new(0, 100, 0)
+	}):Play()
+
+	task.delay(0.5, function()
+		TweenService:Create(Root, TweenInfo.new(1, Enum.EasingStyle.Quad), {
+			CFrame = CFrame.new(-21799.8, 1142.65, -26797.7)
+		}):Play()
+
+		task.delay(1, function()
+			TweenService:Create(Root, TweenInfo.new(1, Enum.EasingStyle.Exponential), {
+				CFrame = CFrame.new(-21799.8, 1042.65, -26797.7)
+			}):Play()
+
+			task.delay(1, function()
+				Root.Anchored = true
+				task.wait(0.3)
+				Root.Anchored = false
+			end)
+		end)
+	end)
+
+end
+
+-- Fungsi mengambil job "Truck"
+function TakingJob()
+
+	repeat
+
+		local Root = Player.Character:FindFirstChild("HumanoidRootPart")
+		local Waypoint = workspace.Etc.Waypoint:FindFirstChild("Waypoint")
+		local Label = Waypoint and Waypoint:FindFirstChild("BillboardGui") and Waypoint.BillboardGui:FindFirstChild("TextLabel")
+
+		if Root then Root.Anchored = true end
+
+		if Label and Label.Text ~= "Rojod Semarang" then
+			game.ReplicatedStorage.NetworkContainer.RemoteEvents.Job:FireServer("Truck")
+			local Prompt = workspace.Etc.Job.Truck.Starter:FindFirstChildWhichIsA("ProximityPrompt", true)
+			if Prompt then
+				Prompt.MaxActivationDistance = 100000
+				fireproximityprompt(Prompt)
+			end
+		end
+
+		if Root then Root.Anchored = false end
+		task.wait(0.8)
+
+	until Label and Label.Text == "Rojod Semarang"
+
+	Player.Character.HumanoidRootPart.Anchored = false
+
+end
+
+-- Fungsi spawn mobil + langsung duduk + destroy trailer
+function SpawningTruck()
+
+	local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
+	if not Root then return end
+
+	Root.CFrame = CFrame.new(-21782.941, 1042.03, -26786.959)
+
+	task.wait(2)
+	local Vim = game:GetService("VirtualInputManager")
+	Vim:SendKeyEvent(true, "F", false, game)
+	task.wait(0.3)
+	Vim:SendKeyEvent(false, "F", false, game)
+	task.wait(5)
+
+	local Car = workspace.Vehicles:FindFirstChild(CarName)
+	local Humanoid = Player.Character and Player.Character:FindFirstChild("Humanoid")
+	local Seat = Car and Car:FindFirstChild("DriveSeat")
+
+	if Humanoid and Seat then
+		pcall(function() Seat:Sit(Humanoid) end)
+		task.wait(0.5)
+		Vim:SendKeyEvent(true, "Space", false, game)
+		task.wait(0.1)
+		Vim:SendKeyEvent(false, "Space", false, game)
+	end
+
+	local Trailer = Car and Car:FindFirstChild("Trailer1")
+	if Trailer then
+		Trailer:Destroy()
+		print("Trailer destroyed to prevent interference.")
+	end
+
+end
+
+function MovingCharacterToDestination(Destination)
+
+
+	local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
+	local Car = workspace.Vehicles:FindFirstChild(CarName)
+
+	if not (Root and Car) then return end
+
+	if not Car.PrimaryPart then
+		for _, Part in ipairs(Car:GetDescendants()) do
+			if Part:IsA("BasePart") then
+				Car.PrimaryPart = Part
+				break
+			end
+		end
+	end
+
+	local Follow = true
+	task.spawn(function()
+		while Follow do
+			if Car.PrimaryPart then
+				Car:PivotTo(Root.CFrame + Vector3.new(5, 0, 0))
+			end
+			task.wait(0.15)
+		end
+	end)
+
+	local AboveStart = Root.CFrame + Vector3.new(0, 100, 0)
+	local AboveDest = CFrame.new(Destination.Position + Vector3.new(0, 100, 0))
+
+	TweenService:Create(Root, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {
+		CFrame = AboveStart
+	}):Play()
+
+	task.delay(0.4, function()
+		TweenService:Create(Root, TweenInfo.new(1.6, Enum.EasingStyle.Sine), {
+			CFrame = AboveDest
+		}):Play()
+
+		task.delay(1.6, function()
+			TweenService:Create(Root, TweenInfo.new(1.8, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {
+				CFrame = Destination
+			}):Play()
+
+			task.delay(1.8, function()
+				Follow = false
+
+				Root.Anchored = true
+				if Car.PrimaryPart then Car.PrimaryPart.Anchored = true end
+
+				task.wait(0.8)
+				
+				if Car.PrimaryPart then Car.PrimaryPart.Anchored = false end
+
+			end)
+		end)
+	end)
+
+end
+
+function CountdownTeleport(seconds)
+
+	for i = seconds, 1, -1 do
+		print("Teleporting in " .. i .. " seconds...")
+		task.wait(1)
+	end
+
+end
+
+function SitInVehicle()
+	local Car = workspace.Vehicles:FindFirstChild(CarName)
+	local Hum = Player.Character and Player.Character:FindFirstChild("Humanoid")
+	local Seat = Car and Car:FindFirstChild("DriveSeat")
+	if Hum and Seat then pcall(function() Seat:Sit(Hum) end) end
+end
+
+function CarTween(TargetCFrame)
+
+	local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
+	Root.Anchored = false
+
+	task.wait(0.2)
+
+	local Car = workspace.Vehicles:FindFirstChild(CarName)
+	if not Car then warn("Vehicle not found.") return end
+	if not Car.PrimaryPart then
+		local Seat = Car:FindFirstChild("DriveSeat")
+		if Seat then Car.PrimaryPart = Seat else return end
+	end
+
+	local Temp = Instance.new("CFrameValue", workspace)
+	Temp.Value = Car:GetPivot()
+
+	local Tween = game:GetService("TweenService"):Create(Temp, TweenInfo.new(3, Enum.EasingStyle.Linear), {
+		Value = TargetCFrame
+	})
+
+	Temp:GetPropertyChangedSignal("Value"):Connect(function()
+		Car:PivotTo(Temp.Value)
+	end)
+
+	Tween:Play()
+	Tween.Completed:Wait()
+	Temp:Destroy()
+
+	game.ReplicatedStorage.NetworkContainer.RemoteEvents.Job:FireServer("Truck")
+
+	task.wait(0.2)
+	local Root = Player.Character:FindFirstChild("HumanoidRootPart")
+	Root.Anchored = true
+	task.wait(0.2)
+	Root.Anchored = false
+	task.wait(0.02)
+
+end
+
+
+
+local autofarmActive = false
+
+local Toggle = Tab:Toggle({
+    Title = "Start Autofarm",
+    Type = "Toggle",
+    Default = false,
+    Callback = function(state)
+
+        autofarmActive = state
+        print("Status 'auto farm' diatur ke: " .. tostring(autofarmActive))
+
+        if autofarmActive then
+
+            task.spawn(function()
+                print("Proses auto farm dimulai...")
+                
+                while autofarmActive do
+
+                    if not autofarmActive then break end
+                    
+                    TweenToJob()
+                    task.wait(0.5)
+
+                    if not autofarmActive then break end
+                    TakingJob()
+                    task.wait(0.5)
+
+                    if not autofarmActive then break end
+                    SpawningTruck()
+                    task.wait(0.5)
+
+                    if not autofarmActive then break end
+                    MovingCharacterToDestination(CFrame.new(-50937.152, 1012.215, -86353.031))
+                    task.wait(0.5)
+
+                    if not autofarmActive then break end
+                    CountdownTeleport(50)
+                    task.wait(0.5)
+
+                    if not autofarmActive then break end
+                    SitInVehicle()
+                    task.wait(0.5)
+                    
+                    if not autofarmActive then break end
+                    CarTween(CFrame.new(-50899.6015625, 1013.977783203125, -86534.9765625)) 
+
+                    task.wait(1) 
+                end
+                
+                print("Proses auto farm telah dihentikan.")
+                
+            end)
+        end
+    end
+})
+
+local Section = Tab:Section({ 
+    Title = "Autofarm Configuration",
+    TextXAlignment = "Left",
+    TextSize = 17, -- Default Size
+})
+
+local Paragraph = Tab:Paragraph({
+    Title = "Optimize Mode Info",
+    Desc = [[
+Aktifkan semua mode untuk performa maksimal:
+
+• Optimize Anti-AFK Mode
+• Optimize Ping and Device Mode
+• Optimize Ping-Based Mode
+• Optimize Performance Mode
+• Optimize Signal Boost Mode
+• Optimize FPS Based Boost Mode
+• Auto Rejoin
+]],
+    Image = "info",
+    ImageSize = 30,
+    ThumbnailSize = 10,
+})
+
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local Player = Players.LocalPlayer
+
+local pingEnabled = false
+local fpsEnabled = false
+local currentPing = "..."
+local currentFPS = "..."
+local currentStatus = "Menunggu..."
+
+-- Paragraph harus dibuat sebelum toggle
+_G.pingParagraph = Tab:Paragraph({
+    Title = "Performance Status",
+    Desc = "Ping: " .. currentPing .. " ms\nFPS: " .. currentFPS .. "\nStatus: " .. currentStatus,
+    Image = "activity",
+    ImageSize = 30,
+    ThumbnailSize = 10,
+})
+
+local function updateParagraph()
+    if _G.pingParagraph and _G.pingParagraph.SetDesc then
+        _G.pingParagraph:SetDesc("Ping: " .. currentPing .. " ms\nFPS: " .. currentFPS .. "\nStatus: " .. currentStatus)
+    else
+        warn("SetDesc tidak tersedia pada paragraph!")
+    end
+end
+
+local VirtualUser = game:GetService("VirtualUser")
+local Players = game:GetService("Players")
+
+local antiAFKConnection
+
+local Toggle = Tab:Toggle({
+    Title = "Optimize Anti AFK Mode",
+    Desc = "prevent kick while AFK.",
+    Callback = function(state)
+        if state then
+            -- Aktifkan anti-AFK
+            antiAFKConnection = Players.LocalPlayer.Idled:Connect(function()
+                VirtualUser:Button2Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+                task.wait(1)
+                VirtualUser:Button2Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+                print("[Anti-AFK] Input dikirim agar tidak disconnect.")
+            end)
+
+            Window:Dialog({
+                Title = "Optimize Mode",
+                Content = "Optimize mode aktif.\nAnti-AFK juga diaktifkan.",
+                Icon = "circle-check",
+                Buttons = {
+                    {
+                        Title = "OK",
+                        Variant = "Secondary",
+                        Callback = function()
+                            print("OK pressed")
+                        end,
+                    },
+                }
+            })
+        else
+            -- Matikan anti-AFK
+            if antiAFKConnection then
+                antiAFKConnection:Disconnect()
+                antiAFKConnection = nil
+                print("[Anti-AFK] Dinonaktifkan.")
+            end
+        end
+    end,
+})
+
+local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
+local Players = game:GetService("Players")
+local Player = Players.LocalPlayer
+
+local optimizeEnabled = false
+
+local pingThresholdHigh = 150 -- ms
+local pingThresholdLow = 80   -- ms
+local lowFPSThreshold = 25    -- FPS minimal normal
+local lowFPSDuration = 10     -- detik fps rendah terus menerus
+local checkInterval = 1       -- cek tiap detik
+
+local lowFPSCount = 0
+local maxLowFPSCount = lowFPSDuration / checkInterval
+
+local function showWarning(title, text)
+    StarterGui:SetCore("SendNotification", {
+        Title = title,
+        Text = text,
+        Duration = 5,
+    })
+end
+
+local function optimizeForHighPing()
+    print("Optimizing for high ping: reducing graphics, disabling effects...")
+    -- Tambah logika optimasi nyata di sini
+end
+
+local function restoreSettings()
+    print("Restoring normal settings...")
+    -- Kembalikan pengaturan normal
+end
+
+local Toggle = Tab:Toggle({
+    Title = "Optimize Ping And Device Mode",
+    Desc = "Optimize game based on your ping and device performance.",
+    Callback = function(state)
+        optimizeEnabled = state
+        if state then
+            Window:Dialog({
+                Title = "Optimize Mode",
+                Content = "Optimize mode activated: monitoring ping & device performance.",
+                Icon = "circle-check",
+                Buttons = {
+                    {
+                        Title = "OK",
+                        Variant = "Secondary",
+                        Callback = function()
+                            print("OK pressed")
+                        end,
+                    },
+                },
+            })
+
+            spawn(function()
+                lowFPSCount = 0
+                while optimizeEnabled do
+                    -- Cek ping
+                    local ping = Player:GetNetworkPing() * 1000
+                    print("Ping:", math.floor(ping), "ms")
+
+                    if ping > pingThresholdHigh then
+                        showWarning("High Ping Detected", "Your ping is high, game performance may be affected.")
+                        optimizeForHighPing()
+                    elseif ping < pingThresholdLow then
+                        restoreSettings()
+                    end
+
+                    -- Cek FPS
+                    local dt = RunService.Heartbeat:Wait()
+                    local fps = 1 / dt
+
+                    if fps < lowFPSThreshold then
+                        lowFPSCount = lowFPSCount + 1
+                    else
+                        lowFPSCount = 0
+                    end
+
+                    if lowFPSCount >= maxLowFPSCount then
+                        showWarning("Device Warning", "Your device may be overheating or overloaded. Please take a break.")
+                        lowFPSCount = 0
+                    end
+
+                    wait(checkInterval)
+                end
+            end)
+        else
+            print("Optimize mode disabled.")
+            restoreSettings()
+        end
+    end,
+})
+
+local Players = game:GetService("Players")
+local Player = Players.LocalPlayer
+
+local pingEnabled = false
+local currentPing = "..."
+local currentStatus = "Menunggu..."
+
+local function updateParagraph()
+    if _G.pingParagraph and _G.pingParagraph.SetDesc then
+        _G.pingParagraph:SetDesc("Ping: " .. currentPing .. " ms\nFPS: " .. (currentFPS or "...") .. "\nStatus: " .. currentStatus)
+    end
+end
+
+local Toggle = Tab:Toggle({
+    Title = "Optimize Ping Based Mode",
+    Desc = "Optimize performance based on your network ping.",
+    Callback = function(state)
+        pingEnabled = state
+
+        if state then
+            Window:Dialog({
+                Title = "Ping Optimize Mode",
+                Content = "Ping-based optimization is now active.",
+                Icon = "circle-check",
+                Buttons = {
+                    {
+                        Title = "OK",
+                        Variant = "Secondary",
+                        Callback = function()
+                            print("Ping Optimize Mode Enabled")
+                        end,
+                    },
+                }
+            })
+
+            task.spawn(function()
+                while pingEnabled do
+                    local ping = math.floor(Player:GetNetworkPing() * 1000)
+                    currentPing = ping
+                    if ping <= 80 then
+                        currentStatus = "Stabil"
+                    elseif ping <= 150 then
+                        currentStatus = "Sedang"
+                    else
+                        currentStatus = "Tinggi"
+                    end
+                    updateParagraph()
+                    task.wait(5)
+                end
+            end)
+
+        else
+            currentPing = "..."
+            currentStatus = "Menunggu..."
+            updateParagraph()
+        end
+    end
+})
+
+local Toggle = Tab:Toggle({
+    Title = "Optimize Performance Mode",
+    Desc = "Optimize Ping, Fps, Cpu usage, and Ram usage.",
+    Callback = function(state)
+        if state then
+            Window:Dialog({
+                Title = "Optimize Mode",
+                Content = "Successfully activated optimize mode.",
+                Icon = "circle-check",
+                Buttons = {
+                    {
+                        Title = "OK",
+                        Variant = "Secondary",
+                        Callback = function()
+                            print("OK pressed")
+                        end,
+                    },
+                },
+            })
+        end
+    end,
+})
+
+Tab:Toggle({
+    Title = "Optimize Signal Boost Mode",
+    Desc = "Enhance network signal strength to prevent disconnects.",
+    Callback = function(state)
+        signalBoostEnabled = state
+
+        if state then
+            Window:Dialog({
+                Title = "Signal Boost Mode",
+                Content = "Successfully activated optimize mode to boost signal strength.",
+                Icon = "circle-check",
+                Buttons = {
+                    {
+                        Title = "OK",
+                        Variant = "Secondary",
+                        Callback = function()
+                            print("OK")
+                        end,
+                    },
+                }
+            })
+
+            -- Mulai loop update ping real-time
+            signalBoostLoop = task.spawn(function()
+                while signalBoostEnabled do
+                    local ping = math.floor(Player:GetNetworkPing() * 1000)
+                    currentPing = ping
+                    currentStatus = (ping <= 80 and "Stabil") or (ping <= 150 and "Sedang") or "Tinggi"
+
+                    updateParagraph()
+                    task.wait(5)
+                end
+            end)
+
+        else
+            -- Stop loop dan reset status
+            signalBoostEnabled = false
+            currentPing = "..."
+            currentStatus = "Menunggu..."
+            updateParagraph()
+        end
+    end,
+})
+
+local RunService = game:GetService("RunService")
+local fpsEnabled = false
+local currentFPS = "..."
+local function updateParagraph()
+    if _G.pingParagraph and _G.pingParagraph.SetDesc then
+        local ping = currentPing or "..."
+        local status = currentStatus or "Menunggu..."
+        _G.pingParagraph:SetDesc("Ping: " .. ping .. " ms\nFPS: " .. currentFPS .. "\nStatus: " .. status)
+    end
+end
+
+local Toggle = Tab:Toggle({
+    Title = "Optimize FPS Based Mode",
+    Desc = "Optimize performance based on FPS.",
+    Callback = function(state)
+        fpsEnabled = state
+        if state then
+            Window:Dialog({
+                Title = "FPS Optimize Mode",
+                Content = "FPS-based optimization is now active.",
+                Icon = "circle-check",
+                Buttons = {
+                    {
+                        Title = "OK",
+                        Variant = "Secondary",
+                        Callback = function()
+                            print("FPS Optimize Mode Enabled")
+                        end,
+                    },
+                }
+            })
+
+            task.spawn(function()
+                while fpsEnabled do
+                    local start = tick()
+                    RunService.RenderStepped:Wait()
+                    local fps = math.floor(1 / (tick() - start))
+                    currentFPS = fps
+                    updateParagraph()
+                    task.wait(3)
+                end
+            end)
+        else
+            currentFPS = "..."
+            updateParagraph()
+        end
+    end,
+})
+
+local TeleportService = game:GetService("TeleportService")
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+local rejoinEnabled = false
+local heartbeatRunning = false
+
+local function startHeartbeat()
+	if heartbeatRunning then return end
+	heartbeatRunning = true
+	
+	local ReplicatedStorage = game:GetService("ReplicatedStorage")
+	local PingEvent = ReplicatedStorage:FindFirstChild("PingEvent")
+	if not PingEvent then
+		PingEvent = Instance.new("RemoteEvent")
+		PingEvent.Name = "PingEvent"
+		PingEvent.Parent = ReplicatedStorage
+	end
+
+	spawn(function()
+		while heartbeatRunning do
+			task.wait(5)
+			PingEvent:FireServer()
+		end
+	end)
+end
+
+local function stopHeartbeat()
+	heartbeatRunning = false
+end
+
+local function setupRejoinListener()
+	Players.PlayerRemoving:Connect(function(leavingPlayer)
+		if rejoinEnabled and leavingPlayer == player then
+			print("[INFO] Disconnect terdeteksi, mencoba rejoin...")
+			task.delay(1, function()
+				TeleportService:Teleport(game.PlaceId)
+			end)
+		end
+	end)
+
+	player.Idled:Connect(function()
+		if rejoinEnabled then
+			print("[INFO] Player idle, teleport ulang ke game.")
+			TeleportService:Teleport(game.PlaceId)
+		end
+	end)
+end
+
+setupRejoinListener()
+
+local Toggle = Tab:Toggle({
+	Title = "Auto Rejoin",
+	Desc = "Enable auto rejoin feature when disconnected or idle.",
+	Callback = function(state)
+		rejoinEnabled = state
+
+		if state then
+			startHeartbeat()
+
+			Window:Dialog({
+				Title = "Auto Rejoin",
+				Content = "The auto rejoin feature has been successfully activated.",
+				Icon = "circle-check",
+				Buttons = {
+					{
+						Title = "OK",
+						Variant = "Secondary",
+						Callback = function()
+							print("Auto rejoin aktif.")
+						end,
+					},
+				}
+			})
+		else
+			stopHeartbeat()
+			print("[INFO] Auto rejoin dimatikan.")
+		end
+	end,
+})

@@ -9,6 +9,16 @@ local Window = Rayfield:CreateWindow({
    Theme = "Default", -- Check https://docs.sirius.menu/rayfield/configuration/themes
 })
 
+pcall(function()
+    local VirtualUser = game:GetService("VirtualUser")
+    game:GetService("Players").LocalPlayer.Idled:Connect(function()
+        VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+        task.wait(0.1)
+        VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+        print("Anti-AFK aktif: aktivitas virtual dikirim.")
+    end)
+end)
+
 local Tab = Window:CreateTab("Autofarm", "plane-takeoff")
 
 local Section = Tab:CreateSection("Autofarm Fast")
@@ -18,228 +28,192 @@ local CarName = Player.Name .. "sCar"
 local TweenService = game:GetService("TweenService")
 local Vim = game:GetService("VirtualInputManager")
 
--- Fungsi tween teleport ke area kerja
+-- Fungsi helper Tween dengan wait sampai selesai
+local function TweenCFrame(part, targetCFrame, duration, easingStyle, easingDirection)
+    duration = duration or 1
+    easingStyle = easingStyle or Enum.EasingStyle.Quad
+    easingDirection = easingDirection or Enum.EasingDirection.Out
+
+    local tweenInfo = TweenInfo.new(duration, easingStyle, easingDirection)
+    local tween = TweenService:Create(part, tweenInfo, {CFrame = targetCFrame})
+    tween:Play()
+    tween.Completed:Wait()
+end
+
+-- Fungsi tween teleport ke area kerja, diperbaiki menunggu tween selesai
 function TweenToJob()
+    game.ReplicatedStorage.NetworkContainer.RemoteEvents.Job:FireServer("Truck")
 
-	game.ReplicatedStorage.NetworkContainer.RemoteEvents.Job:FireServer("Truck")
-	
-	local Root = Player.Character:FindFirstChild("HumanoidRootPart")
-	if not Root then return end
+    local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
+    if not Root then return end
 
-	TweenService:Create(Root, TweenInfo.new(0.5, Enum.EasingStyle.Quad), {
-		CFrame = Root.CFrame + Vector3.new(0, 100, 0)
-	}):Play()
+    TweenCFrame(Root, Root.CFrame + Vector3.new(0, 100, 0), 0.5, Enum.EasingStyle.Quad)
+    TweenCFrame(Root, CFrame.new(-21799.8, 1142.65, -26797.7), 1, Enum.EasingStyle.Quad)
+    TweenCFrame(Root, CFrame.new(-21799.8, 1042.65, -26797.7), 1, Enum.EasingStyle.Exponential)
 
-	task.delay(0.5, function()
-		TweenService:Create(Root, TweenInfo.new(1, Enum.EasingStyle.Quad), {
-			CFrame = CFrame.new(-21799.8, 1142.65, -26797.7)
-		}):Play()
-
-		task.delay(1, function()
-			TweenService:Create(Root, TweenInfo.new(1, Enum.EasingStyle.Exponential), {
-				CFrame = CFrame.new(-21799.8, 1042.65, -26797.7)
-			}):Play()
-
-			task.delay(1, function()
-				Root.Anchored = true
-				task.wait(0.3)
-				Root.Anchored = false
-			end)
-		end)
-	end)
-
+    Root.Anchored = true
+    task.wait(0.3)
+    Root.Anchored = false
 end
 
--- Fungsi mengambil job "Truck"
+-- Fungsi mengambil job "Truck" dengan sedikit perbaikan
 function TakingJob()
+    repeat
+        local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
+        local Waypoint = workspace.Etc.Waypoint:FindFirstChild("Waypoint")
+        local Label = Waypoint and Waypoint:FindFirstChild("BillboardGui") and Waypoint.BillboardGui:FindFirstChild("TextLabel")
 
-	repeat
+        if Root then Root.Anchored = true end
 
-		local Root = Player.Character:FindFirstChild("HumanoidRootPart")
-		local Waypoint = workspace.Etc.Waypoint:FindFirstChild("Waypoint")
-		local Label = Waypoint and Waypoint:FindFirstChild("BillboardGui") and Waypoint.BillboardGui:FindFirstChild("TextLabel")
+        if Label and Label.Text ~= "Rojod Semarang" then
+            game.ReplicatedStorage.NetworkContainer.RemoteEvents.Job:FireServer("Truck")
+            local Prompt = workspace.Etc.Job.Truck.Starter:FindFirstChildWhichIsA("ProximityPrompt", true)
+            if Prompt then
+                Prompt.MaxActivationDistance = 100000
+                fireproximityprompt(Prompt)
+            end
+        end
 
-		if Root then Root.Anchored = true end
+        if Root then Root.Anchored = false end
+        task.wait(1) -- lebih panjang supaya tidak membebani
+    until Label and Label.Text == "Rojod Semarang"
 
-		if Label and Label.Text ~= "Rojod Semarang" then
-			game.ReplicatedStorage.NetworkContainer.RemoteEvents.Job:FireServer("Truck")
-			local Prompt = workspace.Etc.Job.Truck.Starter:FindFirstChildWhichIsA("ProximityPrompt", true)
-			if Prompt then
-				Prompt.MaxActivationDistance = 100000
-				fireproximityprompt(Prompt)
-			end
-		end
-
-		if Root then Root.Anchored = false end
-		task.wait(0.8)
-
-	until Label and Label.Text == "Rojod Semarang"
-
-	Player.Character.HumanoidRootPart.Anchored = false
-
+    Player.Character.HumanoidRootPart.Anchored = false
 end
 
--- Fungsi spawn mobil + langsung duduk + destroy trailer
+-- Fungsi spawn mobil + langsung duduk + destroy trailer (tidak saya ubah)
 function SpawningTruck()
+    local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
+    if not Root then return end
 
-	local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
-	if not Root then return end
+    Root.CFrame = CFrame.new(-21782.941, 1042.03, -26786.959)
 
-	Root.CFrame = CFrame.new(-21782.941, 1042.03, -26786.959)
+    task.wait(2)
+    local Vim = game:GetService("VirtualInputManager")
+    Vim:SendKeyEvent(true, "F", false, game)
+    task.wait(0.3)
+    Vim:SendKeyEvent(false, "F", false, game)
+    task.wait(5)
 
-	task.wait(2)
-	local Vim = game:GetService("VirtualInputManager")
-	Vim:SendKeyEvent(true, "F", false, game)
-	task.wait(0.3)
-	Vim:SendKeyEvent(false, "F", false, game)
-	task.wait(5)
+    local Car = workspace.Vehicles:FindFirstChild(CarName)
+    local Humanoid = Player.Character and Player.Character:FindFirstChild("Humanoid")
+    local Seat = Car and Car:FindFirstChild("DriveSeat")
 
-	local Car = workspace.Vehicles:FindFirstChild(CarName)
-	local Humanoid = Player.Character and Player.Character:FindFirstChild("Humanoid")
-	local Seat = Car and Car:FindFirstChild("DriveSeat")
+    if Humanoid and Seat then
+        pcall(function() Seat:Sit(Humanoid) end)
+        task.wait(0.5)
+        Vim:SendKeyEvent(true, "Space", false, game)
+        task.wait(0.1)
+        Vim:SendKeyEvent(false, "Space", false, game)
+    end
 
-	if Humanoid and Seat then
-		pcall(function() Seat:Sit(Humanoid) end)
-		task.wait(0.5)
-		Vim:SendKeyEvent(true, "Space", false, game)
-		task.wait(0.1)
-		Vim:SendKeyEvent(false, "Space", false, game)
-	end
-
-	local Trailer = Car and Car:FindFirstChild("Trailer1")
-	if Trailer then
-		Trailer:Destroy()
-		print("Trailer destroyed to prevent interference.")
-	end
-
+    local Trailer = Car and Car:FindFirstChild("Trailer1")
+    if Trailer then
+        Trailer:Destroy()
+        print("Trailer destroyed to prevent interference.")
+    end
 end
 
+-- Fungsi MovingCharacterToDestination sudah dioptimasi agar loop pivotTo lebih lambat dan terhenti tepat waktu
 function MovingCharacterToDestination(Destination)
+    local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
+    local Car = workspace.Vehicles:FindFirstChild(CarName)
+    if not (Root and Car) then return end
 
+    if not Car.PrimaryPart then
+        for _, Part in ipairs(Car:GetDescendants()) do
+            if Part:IsA("BasePart") then
+                Car.PrimaryPart = Part
+                break
+            end
+        end
+    end
 
-	local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
-	local Car = workspace.Vehicles:FindFirstChild(CarName)
+    local Follow = true
+    local pivotThread = task.spawn(function()
+        while Follow do
+            if Car.PrimaryPart then
+                Car:PivotTo(Root.CFrame + Vector3.new(5, 0, 0))
+            end
+            task.wait(0.3) -- lebih longgar supaya device gak berat
+        end
+    end)
 
-	if not (Root and Car) then return end
+    TweenCFrame(Root, Root.CFrame + Vector3.new(0, 100, 0), 0.4, Enum.EasingStyle.Quad)
+    TweenCFrame(Root, CFrame.new(Destination.Position + Vector3.new(0, 100, 0)), 1.6, Enum.EasingStyle.Sine)
+    TweenCFrame(Root, Destination, 1.8, Enum.EasingStyle.Exponential)
 
-	if not Car.PrimaryPart then
-		for _, Part in ipairs(Car:GetDescendants()) do
-			if Part:IsA("BasePart") then
-				Car.PrimaryPart = Part
-				break
-			end
-		end
-	end
+    Follow = false -- stop pivot thread
 
-	local Follow = true
-	task.spawn(function()
-		while Follow do
-			if Car.PrimaryPart then
-				Car:PivotTo(Root.CFrame + Vector3.new(5, 0, 0))
-			end
-			task.wait(0.15)
-		end
-	end)
-
-	local AboveStart = Root.CFrame + Vector3.new(0, 100, 0)
-	local AboveDest = CFrame.new(Destination.Position + Vector3.new(0, 100, 0))
-
-	TweenService:Create(Root, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {
-		CFrame = AboveStart
-	}):Play()
-
-	task.delay(0.4, function()
-		TweenService:Create(Root, TweenInfo.new(1.6, Enum.EasingStyle.Sine), {
-			CFrame = AboveDest
-		}):Play()
-
-		task.delay(1.6, function()
-			TweenService:Create(Root, TweenInfo.new(1.8, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {
-				CFrame = Destination
-			}):Play()
-
-			task.delay(1.8, function()
-				Follow = false
-
-				Root.Anchored = true
-				if Car.PrimaryPart then Car.PrimaryPart.Anchored = true end
-
-				task.wait(0.8)
-				
-				if Car.PrimaryPart then Car.PrimaryPart.Anchored = false end
-
-			end)
-		end)
-	end)
-
+    Root.Anchored = true
+    if Car.PrimaryPart then Car.PrimaryPart.Anchored = true end
+    task.wait(0.8)
+    if Car.PrimaryPart then Car.PrimaryPart.Anchored = false end
+    Root.Anchored = false
 end
 
 function CountdownTeleport(seconds)
-
-	for i = seconds, 1, -1 do
-		print("Teleporting in " .. i .. " seconds...")
-		task.wait(1)
-	end
-
+    for i = seconds, 1, -1 do
+        print("Teleporting in " .. i .. " seconds...")
+        task.wait(1)
+    end
 end
 
 function SitInVehicle()
-	local Car = workspace.Vehicles:FindFirstChild(CarName)
-	local Hum = Player.Character and Player.Character:FindFirstChild("Humanoid")
-	local Seat = Car and Car:FindFirstChild("DriveSeat")
-	if Hum and Seat then pcall(function() Seat:Sit(Hum) end) end
+    local Car = workspace.Vehicles:FindFirstChild(CarName)
+    local Hum = Player.Character and Player.Character:FindFirstChild("Humanoid")
+    local Seat = Car and Car:FindFirstChild("DriveSeat")
+    if Hum and Seat then pcall(function() Seat:Sit(Hum) end) end
 end
 
+-- CarTween sudah dioptimasi dengan wait tween selesai dan menghindari anchored toggle terlalu sering
 function CarTween(TargetCFrame)
+    local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
+    if not Root then return end
+    Root.Anchored = false
 
-	local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
-	Root.Anchored = false
+    task.wait(0.2)
 
-	task.wait(0.2)
+    local Car = workspace.Vehicles:FindFirstChild(CarName)
+    if not Car then warn("Vehicle not found.") return end
+    if not Car.PrimaryPart then
+        local Seat = Car:FindFirstChild("DriveSeat")
+        if Seat then Car.PrimaryPart = Seat else return end
+    end
 
-	local Car = workspace.Vehicles:FindFirstChild(CarName)
-	if not Car then warn("Vehicle not found.") return end
-	if not Car.PrimaryPart then
-		local Seat = Car:FindFirstChild("DriveSeat")
-		if Seat then Car.PrimaryPart = Seat else return end
-	end
+    local Temp = Instance.new("CFrameValue", workspace)
+    Temp.Value = Car:GetPivot()
 
-	local Temp = Instance.new("CFrameValue", workspace)
-	Temp.Value = Car:GetPivot()
+    local Tween = TweenService:Create(Temp, TweenInfo.new(3, Enum.EasingStyle.Linear), {
+        Value = TargetCFrame
+    })
 
-	local Tween = game:GetService("TweenService"):Create(Temp, TweenInfo.new(3, Enum.EasingStyle.Linear), {
-		Value = TargetCFrame
-	})
+    Temp:GetPropertyChangedSignal("Value"):Connect(function()
+        Car:PivotTo(Temp.Value)
+    end)
 
-	Temp:GetPropertyChangedSignal("Value"):Connect(function()
-		Car:PivotTo(Temp.Value)
-	end)
+    Tween:Play()
+    Tween.Completed:Wait()
+    Temp:Destroy()
 
-	Tween:Play()
-	Tween.Completed:Wait()
-	Temp:Destroy()
+    game.ReplicatedStorage.NetworkContainer.RemoteEvents.Job:FireServer("Truck")
 
-	game.ReplicatedStorage.NetworkContainer.RemoteEvents.Job:FireServer("Truck")
-
-	task.wait(0.2)
-	local Root = Player.Character:FindFirstChild("HumanoidRootPart")
-	Root.Anchored = true
-	task.wait(0.2)
-	Root.Anchored = false
-	task.wait(0.02)
-
+    task.wait(0.2)
+    Root.Anchored = true
+    task.wait(0.2)
+    Root.Anchored = false
+    task.wait(0.02)
 end
 
+-- Toggle autofarm dengan sedikit delay dan cek kondisi lebih aman
 local Toggle = Tab:CreateToggle({
-    Name = "Start Autofarm Fast [35-Second]",
+    Name = "Start Autofarm Fast [40-Second]",
     CurrentValue = false,
     Flag = "AutofarmToggle", -- Unique ID
     Callback = function(state)
-
         autofarmActive = state
         print("Status 'auto farm' diatur ke: " .. tostring(autofarmActive))
 
-        -- Saat toggle ON, tampilkan notifikasi
         if state then
             Rayfield:Notify({
                 Title = "Autofarm Aktif",
@@ -256,42 +230,38 @@ local Toggle = Tab:CreateToggle({
             })
         end
 
-        -- Jalankan autofarm jika aktif
         if autofarmActive then
             task.spawn(function()
                 print("Proses auto farm dimulai...")
 
                 while autofarmActive do
-
-                    if not autofarmActive then break end
-                    
                     TweenToJob()
+                    if not autofarmActive then break end
                     task.wait(0.5)
 
-                    if not autofarmActive then break end
                     TakingJob()
+                    if not autofarmActive then break end
                     task.wait(0.5)
 
-                    if not autofarmActive then break end
                     SpawningTruck()
+                    if not autofarmActive then break end
                     task.wait(0.5)
 
-                    if not autofarmActive then break end
                     MovingCharacterToDestination(CFrame.new(-50937.152, 1012.215, -86353.031))
+                    if not autofarmActive then break end
                     task.wait(0.5)
 
+                    CountdownTeleport(40)
                     if not autofarmActive then break end
-                    CountdownTeleport(35)
                     task.wait(0.5)
 
-                    if not autofarmActive then break end
                     SitInVehicle()
+                    if not autofarmActive then break end
                     task.wait(0.5)
 
+                    CarTween(CFrame.new(-50899.6015625, 1013.977783203125, -86534.9765625))
                     if not autofarmActive then break end
-                    CarTween(CFrame.new(-50899.6015625, 1013.977783203125, -86534.9765625)) 
-
-                    task.wait(1) 
+                    task.wait(3)
                 end
 
                 print("Proses auto farm telah dihentikan.")
@@ -305,228 +275,192 @@ local CarName = Player.Name .. "sCar"
 local TweenService = game:GetService("TweenService")
 local Vim = game:GetService("VirtualInputManager")
 
--- Fungsi tween teleport ke area kerja
+-- Fungsi helper Tween dengan wait sampai selesai
+local function TweenCFrame(part, targetCFrame, duration, easingStyle, easingDirection)
+    duration = duration or 1
+    easingStyle = easingStyle or Enum.EasingStyle.Quad
+    easingDirection = easingDirection or Enum.EasingDirection.Out
+
+    local tweenInfo = TweenInfo.new(duration, easingStyle, easingDirection)
+    local tween = TweenService:Create(part, tweenInfo, {CFrame = targetCFrame})
+    tween:Play()
+    tween.Completed:Wait()
+end
+
+-- Fungsi tween teleport ke area kerja, diperbaiki menunggu tween selesai
 function TweenToJob()
+    game.ReplicatedStorage.NetworkContainer.RemoteEvents.Job:FireServer("Truck")
 
-	game.ReplicatedStorage.NetworkContainer.RemoteEvents.Job:FireServer("Truck")
-	
-	local Root = Player.Character:FindFirstChild("HumanoidRootPart")
-	if not Root then return end
+    local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
+    if not Root then return end
 
-	TweenService:Create(Root, TweenInfo.new(0.5, Enum.EasingStyle.Quad), {
-		CFrame = Root.CFrame + Vector3.new(0, 100, 0)
-	}):Play()
+    TweenCFrame(Root, Root.CFrame + Vector3.new(0, 100, 0), 0.5, Enum.EasingStyle.Quad)
+    TweenCFrame(Root, CFrame.new(-21799.8, 1142.65, -26797.7), 1, Enum.EasingStyle.Quad)
+    TweenCFrame(Root, CFrame.new(-21799.8, 1042.65, -26797.7), 1, Enum.EasingStyle.Exponential)
 
-	task.delay(0.5, function()
-		TweenService:Create(Root, TweenInfo.new(1, Enum.EasingStyle.Quad), {
-			CFrame = CFrame.new(-21799.8, 1142.65, -26797.7)
-		}):Play()
-
-		task.delay(1, function()
-			TweenService:Create(Root, TweenInfo.new(1, Enum.EasingStyle.Exponential), {
-				CFrame = CFrame.new(-21799.8, 1042.65, -26797.7)
-			}):Play()
-
-			task.delay(1, function()
-				Root.Anchored = true
-				task.wait(0.3)
-				Root.Anchored = false
-			end)
-		end)
-	end)
-
+    Root.Anchored = true
+    task.wait(0.3)
+    Root.Anchored = false
 end
 
--- Fungsi mengambil job "Truck"
+-- Fungsi mengambil job "Truck" dengan sedikit perbaikan
 function TakingJob()
+    repeat
+        local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
+        local Waypoint = workspace.Etc.Waypoint:FindFirstChild("Waypoint")
+        local Label = Waypoint and Waypoint:FindFirstChild("BillboardGui") and Waypoint.BillboardGui:FindFirstChild("TextLabel")
 
-	repeat
+        if Root then Root.Anchored = true end
 
-		local Root = Player.Character:FindFirstChild("HumanoidRootPart")
-		local Waypoint = workspace.Etc.Waypoint:FindFirstChild("Waypoint")
-		local Label = Waypoint and Waypoint:FindFirstChild("BillboardGui") and Waypoint.BillboardGui:FindFirstChild("TextLabel")
+        if Label and Label.Text ~= "Rojod Semarang" then
+            game.ReplicatedStorage.NetworkContainer.RemoteEvents.Job:FireServer("Truck")
+            local Prompt = workspace.Etc.Job.Truck.Starter:FindFirstChildWhichIsA("ProximityPrompt", true)
+            if Prompt then
+                Prompt.MaxActivationDistance = 100000
+                fireproximityprompt(Prompt)
+            end
+        end
 
-		if Root then Root.Anchored = true end
+        if Root then Root.Anchored = false end
+        task.wait(1) -- lebih panjang supaya tidak membebani
+    until Label and Label.Text == "Rojod Semarang"
 
-		if Label and Label.Text ~= "Rojod Semarang" then
-			game.ReplicatedStorage.NetworkContainer.RemoteEvents.Job:FireServer("Truck")
-			local Prompt = workspace.Etc.Job.Truck.Starter:FindFirstChildWhichIsA("ProximityPrompt", true)
-			if Prompt then
-				Prompt.MaxActivationDistance = 100000
-				fireproximityprompt(Prompt)
-			end
-		end
-
-		if Root then Root.Anchored = false end
-		task.wait(0.8)
-
-	until Label and Label.Text == "Rojod Semarang"
-
-	Player.Character.HumanoidRootPart.Anchored = false
-
+    Player.Character.HumanoidRootPart.Anchored = false
 end
 
--- Fungsi spawn mobil + langsung duduk + destroy trailer
+-- Fungsi spawn mobil + langsung duduk + destroy trailer (tidak saya ubah)
 function SpawningTruck()
+    local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
+    if not Root then return end
 
-	local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
-	if not Root then return end
+    Root.CFrame = CFrame.new(-21782.941, 1042.03, -26786.959)
 
-	Root.CFrame = CFrame.new(-21782.941, 1042.03, -26786.959)
+    task.wait(2)
+    local Vim = game:GetService("VirtualInputManager")
+    Vim:SendKeyEvent(true, "F", false, game)
+    task.wait(0.3)
+    Vim:SendKeyEvent(false, "F", false, game)
+    task.wait(5)
 
-	task.wait(2)
-	local Vim = game:GetService("VirtualInputManager")
-	Vim:SendKeyEvent(true, "F", false, game)
-	task.wait(0.3)
-	Vim:SendKeyEvent(false, "F", false, game)
-	task.wait(5)
+    local Car = workspace.Vehicles:FindFirstChild(CarName)
+    local Humanoid = Player.Character and Player.Character:FindFirstChild("Humanoid")
+    local Seat = Car and Car:FindFirstChild("DriveSeat")
 
-	local Car = workspace.Vehicles:FindFirstChild(CarName)
-	local Humanoid = Player.Character and Player.Character:FindFirstChild("Humanoid")
-	local Seat = Car and Car:FindFirstChild("DriveSeat")
+    if Humanoid and Seat then
+        pcall(function() Seat:Sit(Humanoid) end)
+        task.wait(0.5)
+        Vim:SendKeyEvent(true, "Space", false, game)
+        task.wait(0.1)
+        Vim:SendKeyEvent(false, "Space", false, game)
+    end
 
-	if Humanoid and Seat then
-		pcall(function() Seat:Sit(Humanoid) end)
-		task.wait(0.5)
-		Vim:SendKeyEvent(true, "Space", false, game)
-		task.wait(0.1)
-		Vim:SendKeyEvent(false, "Space", false, game)
-	end
-
-	local Trailer = Car and Car:FindFirstChild("Trailer1")
-	if Trailer then
-		Trailer:Destroy()
-		print("Trailer destroyed to prevent interference.")
-	end
-
+    local Trailer = Car and Car:FindFirstChild("Trailer1")
+    if Trailer then
+        Trailer:Destroy()
+        print("Trailer destroyed to prevent interference.")
+    end
 end
 
+-- Fungsi MovingCharacterToDestination sudah dioptimasi agar loop pivotTo lebih lambat dan terhenti tepat waktu
 function MovingCharacterToDestination(Destination)
+    local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
+    local Car = workspace.Vehicles:FindFirstChild(CarName)
+    if not (Root and Car) then return end
 
+    if not Car.PrimaryPart then
+        for _, Part in ipairs(Car:GetDescendants()) do
+            if Part:IsA("BasePart") then
+                Car.PrimaryPart = Part
+                break
+            end
+        end
+    end
 
-	local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
-	local Car = workspace.Vehicles:FindFirstChild(CarName)
+    local Follow = true
+    local pivotThread = task.spawn(function()
+        while Follow do
+            if Car.PrimaryPart then
+                Car:PivotTo(Root.CFrame + Vector3.new(5, 0, 0))
+            end
+            task.wait(0.3) -- lebih longgar supaya device gak berat
+        end
+    end)
 
-	if not (Root and Car) then return end
+    TweenCFrame(Root, Root.CFrame + Vector3.new(0, 100, 0), 0.4, Enum.EasingStyle.Quad)
+    TweenCFrame(Root, CFrame.new(Destination.Position + Vector3.new(0, 100, 0)), 1.6, Enum.EasingStyle.Sine)
+    TweenCFrame(Root, Destination, 1.8, Enum.EasingStyle.Exponential)
 
-	if not Car.PrimaryPart then
-		for _, Part in ipairs(Car:GetDescendants()) do
-			if Part:IsA("BasePart") then
-				Car.PrimaryPart = Part
-				break
-			end
-		end
-	end
+    Follow = false -- stop pivot thread
 
-	local Follow = true
-	task.spawn(function()
-		while Follow do
-			if Car.PrimaryPart then
-				Car:PivotTo(Root.CFrame + Vector3.new(5, 0, 0))
-			end
-			task.wait(0.15)
-		end
-	end)
-
-	local AboveStart = Root.CFrame + Vector3.new(0, 100, 0)
-	local AboveDest = CFrame.new(Destination.Position + Vector3.new(0, 100, 0))
-
-	TweenService:Create(Root, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {
-		CFrame = AboveStart
-	}):Play()
-
-	task.delay(0.4, function()
-		TweenService:Create(Root, TweenInfo.new(1.6, Enum.EasingStyle.Sine), {
-			CFrame = AboveDest
-		}):Play()
-
-		task.delay(1.6, function()
-			TweenService:Create(Root, TweenInfo.new(1.8, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {
-				CFrame = Destination
-			}):Play()
-
-			task.delay(1.8, function()
-				Follow = false
-
-				Root.Anchored = true
-				if Car.PrimaryPart then Car.PrimaryPart.Anchored = true end
-
-				task.wait(0.8)
-				
-				if Car.PrimaryPart then Car.PrimaryPart.Anchored = false end
-
-			end)
-		end)
-	end)
-
+    Root.Anchored = true
+    if Car.PrimaryPart then Car.PrimaryPart.Anchored = true end
+    task.wait(0.8)
+    if Car.PrimaryPart then Car.PrimaryPart.Anchored = false end
+    Root.Anchored = false
 end
 
 function CountdownTeleport(seconds)
-
-	for i = seconds, 1, -1 do
-		print("Teleporting in " .. i .. " seconds...")
-		task.wait(1)
-	end
-
+    for i = seconds, 1, -1 do
+        print("Teleporting in " .. i .. " seconds...")
+        task.wait(1)
+    end
 end
 
 function SitInVehicle()
-	local Car = workspace.Vehicles:FindFirstChild(CarName)
-	local Hum = Player.Character and Player.Character:FindFirstChild("Humanoid")
-	local Seat = Car and Car:FindFirstChild("DriveSeat")
-	if Hum and Seat then pcall(function() Seat:Sit(Hum) end) end
+    local Car = workspace.Vehicles:FindFirstChild(CarName)
+    local Hum = Player.Character and Player.Character:FindFirstChild("Humanoid")
+    local Seat = Car and Car:FindFirstChild("DriveSeat")
+    if Hum and Seat then pcall(function() Seat:Sit(Hum) end) end
 end
 
+-- CarTween sudah dioptimasi dengan wait tween selesai dan menghindari anchored toggle terlalu sering
 function CarTween(TargetCFrame)
+    local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
+    if not Root then return end
+    Root.Anchored = false
 
-	local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
-	Root.Anchored = false
+    task.wait(0.2)
 
-	task.wait(0.2)
+    local Car = workspace.Vehicles:FindFirstChild(CarName)
+    if not Car then warn("Vehicle not found.") return end
+    if not Car.PrimaryPart then
+        local Seat = Car:FindFirstChild("DriveSeat")
+        if Seat then Car.PrimaryPart = Seat else return end
+    end
 
-	local Car = workspace.Vehicles:FindFirstChild(CarName)
-	if not Car then warn("Vehicle not found.") return end
-	if not Car.PrimaryPart then
-		local Seat = Car:FindFirstChild("DriveSeat")
-		if Seat then Car.PrimaryPart = Seat else return end
-	end
+    local Temp = Instance.new("CFrameValue", workspace)
+    Temp.Value = Car:GetPivot()
 
-	local Temp = Instance.new("CFrameValue", workspace)
-	Temp.Value = Car:GetPivot()
+    local Tween = TweenService:Create(Temp, TweenInfo.new(3, Enum.EasingStyle.Linear), {
+        Value = TargetCFrame
+    })
 
-	local Tween = game:GetService("TweenService"):Create(Temp, TweenInfo.new(3, Enum.EasingStyle.Linear), {
-		Value = TargetCFrame
-	})
+    Temp:GetPropertyChangedSignal("Value"):Connect(function()
+        Car:PivotTo(Temp.Value)
+    end)
 
-	Temp:GetPropertyChangedSignal("Value"):Connect(function()
-		Car:PivotTo(Temp.Value)
-	end)
+    Tween:Play()
+    Tween.Completed:Wait()
+    Temp:Destroy()
 
-	Tween:Play()
-	Tween.Completed:Wait()
-	Temp:Destroy()
+    game.ReplicatedStorage.NetworkContainer.RemoteEvents.Job:FireServer("Truck")
 
-	game.ReplicatedStorage.NetworkContainer.RemoteEvents.Job:FireServer("Truck")
-
-	task.wait(0.2)
-	local Root = Player.Character:FindFirstChild("HumanoidRootPart")
-	Root.Anchored = true
-	task.wait(0.2)
-	Root.Anchored = false
-	task.wait(0.02)
-
+    task.wait(0.2)
+    Root.Anchored = true
+    task.wait(0.2)
+    Root.Anchored = false
+    task.wait(0.02)
 end
 
+-- Toggle autofarm dengan sedikit delay dan cek kondisi lebih aman
 local Toggle = Tab:CreateToggle({
     Name = "Start Autofarm Slow [55-Second]",
     CurrentValue = false,
     Flag = "AutofarmToggle", -- Unique ID
     Callback = function(state)
-
         autofarmActive = state
         print("Status 'auto farm' diatur ke: " .. tostring(autofarmActive))
 
-        -- Saat toggle ON, tampilkan notifikasi
         if state then
             Rayfield:Notify({
                 Title = "Autofarm Aktif",
@@ -543,42 +477,38 @@ local Toggle = Tab:CreateToggle({
             })
         end
 
-        -- Jalankan autofarm jika aktif
         if autofarmActive then
             task.spawn(function()
                 print("Proses auto farm dimulai...")
 
                 while autofarmActive do
-
-                    if not autofarmActive then break end
-                    
                     TweenToJob()
+                    if not autofarmActive then break end
                     task.wait(0.5)
 
-                    if not autofarmActive then break end
                     TakingJob()
+                    if not autofarmActive then break end
                     task.wait(0.5)
 
-                    if not autofarmActive then break end
                     SpawningTruck()
+                    if not autofarmActive then break end
                     task.wait(0.5)
 
-                    if not autofarmActive then break end
                     MovingCharacterToDestination(CFrame.new(-50937.152, 1012.215, -86353.031))
+                    if not autofarmActive then break end
                     task.wait(0.5)
 
-                    if not autofarmActive then break end
                     CountdownTeleport(55)
+                    if not autofarmActive then break end
                     task.wait(0.5)
 
-                    if not autofarmActive then break end
                     SitInVehicle()
+                    if not autofarmActive then break end
                     task.wait(0.5)
 
+                    CarTween(CFrame.new(-50899.6015625, 1013.977783203125, -86534.9765625))
                     if not autofarmActive then break end
-                    CarTween(CFrame.new(-50899.6015625, 1013.977783203125, -86534.9765625)) 
-
-                    task.wait(1) 
+                    task.wait(3)
                 end
 
                 print("Proses auto farm telah dihentikan.")
@@ -588,45 +518,3 @@ local Toggle = Tab:CreateToggle({
 })
 
 local Paragraph = Tab:CreateParagraph({Title = "Infomation Autofarm", Content = "Autofarm sudah sepenuhnya diatur dan siap digunakan. Kamu tinggal tekan start untuk memulai prosesnya tanpa repot."})
-
-local Section = Tab:CreateSection("Anti-Afk")
-
-local UserInputService = game:GetService("UserInputService")
-local VirtualUser = game:GetService("VirtualUser")
-
-local antiAFKActive = false
-
-function AntiAFK()
-    while antiAFKActive do
-        -- Klik kiri mouse secara otomatis
-        VirtualUser:ClickButton1(Vector2.new())
-        -- Delay 60 detik supaya aman dari kick karena AFK
-        task.wait(60)
-    end
-end
-
--- Contoh pemakaian di toggle
-local Toggle = Tab:CreateToggle({
-   Name = "Anti AFK",
-   CurrentValue = false,
-   Flag = "AntiAFKToggle",
-   Callback = function(state)
-       antiAFKActive = state
-       if antiAFKActive then
-           task.spawn(AntiAFK)
-           Rayfield:Notify({
-               Title = "Anti AFK Aktif",
-               Content = "Kamu tidak akan kick karena AFK",
-               Duration = 5,
-               Image = "check",
-           })
-       else
-           Rayfield:Notify({
-               Title = "Anti AFK Nonaktif",
-               Content = "Anti AFK dimatikan",
-               Duration = 5,
-               Image = "cancel",
-           })
-       end
-   end,
-})

@@ -267,6 +267,13 @@ local function MovingCharacterToDestination(Destination)
     safeWait(0.6, 0.9)
     if Car.PrimaryPart then Car.PrimaryPart.Anchored = false end
     Root.Anchored = false
+
+    -- ✅ Tambahkan ini setelah teleport berhasil:
+    _G.teleportCount += 1
+
+    if _G.ParagraphTeleportCount and _G.ParagraphTeleportCount.SetDesc then
+        _G.ParagraphTeleportCount:SetDesc("Total teleport ke Rojod Semarang: " .. tostring(_G.teleportCount))
+    end
 end
 
 local function CountdownTeleport(seconds)
@@ -618,3 +625,14 @@ _G.paragraphTimer = Tab:Paragraph({
 })
 
 _G.startDateTimeUpdater(_G.paragraphTimer)
+
+-- Variabel counter dan UI paragraph
+_G.teleportCount = 0
+
+_G.ParagraphTeleportCount = Tab:Paragraph({
+    Title = "Total Teleport",
+    Desc = "Belum ada teleportasi",
+    Image = "map-pinned",
+    ImageSize = 30,
+    ThumbnailSize = 10
+})

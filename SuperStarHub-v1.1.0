@@ -358,7 +358,7 @@ Tab:Toggle({
                     safeWait(0.5, 1)
                     MovingCharacterToDestination(CFrame.new(-50937.152, 1012.215, -86353.031))
                     safeWait(0.5, 1)
-                    CountdownTeleport(35)  -- akan update paragraph di dalamnya
+                    CountdownTeleport(40)  -- akan update paragraph di dalamnya
                     safeWait(0.5, 1)
                     SitInVehicle()
                     safeWait(0.5, 1)

@@ -24,7 +24,7 @@ local Window = WindUI:CreateWindow({
     Icon = "slack",
     Author = "by smotivvv.",
     Folder = "StrixHub | Premium  -  v1.1.0",
-    Size = UDim2.fromOffset(580, 250),
+    Size = UDim2.fromOffset(580, 300),
     Transparent = true,
     Theme = "Dark",
     User = {
@@ -45,482 +45,321 @@ local Section = Tab:Section({
     TextSize = 17, -- Default Size
 })
 
-local Paragraph = Tab:Paragraph({
-    Title = "Autofarm Information",
-    Desc = "Autofarm sudah sepenuhnya diatur dan siap digunakan. Kamu tinggal tekan start untuk memulai prosesnya tanpa repot.",
-    Image = "info",
-    ImageSize = 30,
-    ThumbnailSize = 10
-})
-
 local Player = game.Players.LocalPlayer
 local CarName = Player.Name .. "sCar"
 local TweenService = game:GetService("TweenService")
 local Vim = game:GetService("VirtualInputManager")
 
-local autofarmActive = false
+-- Fungsi tween teleport ke area kerja
+function TweenToJob()
 
-local function safeWait(min, max)
-    task.wait(min + math.random() * (max - min))
+	game.ReplicatedStorage.NetworkContainer.RemoteEvents.Job:FireServer("Truck")
+	
+	local Root = Player.Character:FindFirstChild("HumanoidRootPart")
+	if not Root then return end
+
+	TweenService:Create(Root, TweenInfo.new(0.5, Enum.EasingStyle.Quad), {
+		CFrame = Root.CFrame + Vector3.new(0, 100, 0)
+	}):Play()
+
+	task.delay(0.5, function()
+		TweenService:Create(Root, TweenInfo.new(1, Enum.EasingStyle.Quad), {
+			CFrame = CFrame.new(-21799.8, 1142.65, -26797.7)
+		}):Play()
+
+		task.delay(1, function()
+			TweenService:Create(Root, TweenInfo.new(1, Enum.EasingStyle.Exponential), {
+				CFrame = CFrame.new(-21799.8, 1042.65, -26797.7)
+			}):Play()
+
+			task.delay(1, function()
+				Root.Anchored = true
+				task.wait(0.3)
+				Root.Anchored = false
+			end)
+		end)
+	end)
+
 end
 
-local function SafeTween(part, targetCFrame, time, style)
-    if not part then return end
-    local tweenInfo = TweenInfo.new(time or 1, style or Enum.EasingStyle.Sine)
-    local success, tween = pcall(function()
-        return TweenService:Create(part, tweenInfo, {CFrame = targetCFrame})
-    end)
-    if not success or not tween then return end
-
-    tween:Play()
-    tween.Completed:Wait()
-end
-
-local function WaitForRootPart(timeout)
-    timeout = timeout or 5
-    local root
-    local t = 0
-    repeat
-        root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
-        if root then break end
-        task.wait(0.1)
-        t = t + 0.1
-    until t >= timeout
-    return root
-end
-
-local function TweenToJob()
-    local success, err = pcall(function()
-        game.ReplicatedStorage.NetworkContainer.RemoteEvents.Job:FireServer("Truck")
-    end)
-    if not success then
-        warn("Failed to fire job event:", err)
-        return
-    end
-
-    local Root = WaitForRootPart(5)
-    if not Root then
-        warn("HumanoidRootPart not found.")
-        return
-    end
-
-    SafeTween(Root, Root.CFrame + Vector3.new(0, 100, 0), 0.5, Enum.EasingStyle.Quad)
-    safeWait(0.2, 0.3)
-    SafeTween(Root, CFrame.new(-21799.8, 1142.65, -26797.7), 1, Enum.EasingStyle.Quad)
-    safeWait(0.2, 0.3)
-    SafeTween(Root, CFrame.new(-21799.8, 1042.65, -26797.7), 1, Enum.EasingStyle.Exponential)
-    safeWait(0.2, 0.4)
-end
-
-local function TakingJob()
+-- Fungsi mengambil job "Truck"
+function TakingJob()
     repeat
         local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
-        local Label = workspace:FindFirstChild("Etc") and workspace.Etc:FindFirstChild("Waypoint") and workspace.Etc.Waypoint:FindFirstChild("Waypoint")
-        Label = Label and Label:FindFirstChild("BillboardGui") and Label.BillboardGui:FindFirstChild("TextLabel")
+        local Waypoint = workspace.Etc:FindFirstChild("Waypoint") and workspace.Etc.Waypoint:FindFirstChild("Waypoint")
+        local Label = Waypoint and Waypoint:FindFirstChild("BillboardGui") and Waypoint.BillboardGui:FindFirstChild("TextLabel")
 
         if Root then Root.Anchored = true end
 
         if Label and Label.Text ~= "Rojod Semarang" then
-            local ok, err = pcall(function()
+            local success, err = pcall(function()
                 game.ReplicatedStorage.NetworkContainer.RemoteEvents.Job:FireServer("Truck")
             end)
-            if not ok then warn("FireServer Job failed:", err) end
+            if not success then warn("Error FireServer:", err) end
 
-            safeWait(1, 2)
-
-            local Prompt = workspace:FindFirstChild("Etc") and workspace.Etc:FindFirstChild("Job") and workspace.Etc.Job:FindFirstChild("Truck") and workspace.Etc.Job.Truck:FindFirstChild("Starter")
+            local Prompt = workspace.Etc.Job.Truck.Starter:FindFirstChildWhichIsA("ProximityPrompt", true)
             if Prompt then
-                Prompt = Prompt:FindFirstChildWhichIsA("ProximityPrompt", true)
-                if Prompt then
-                    Prompt.MaxActivationDistance = 50
-                    local ok2, err2 = pcall(function() fireproximityprompt(Prompt) end)
-                    if not ok2 then warn("fireproximityprompt error:", err2) end
-                end
+                Prompt.MaxActivationDistance = 100000
+                local ok, e = pcall(function() fireproximityprompt(Prompt) end)
+                if not ok then warn("Error fireproximityprompt:", e) end
             end
         end
 
         if Root then Root.Anchored = false end
-        safeWait(0.5, 1)
-    until Label and Label.Text == "Rojod Semarang" or not autofarmActive
-end
+        task.wait(0.8)
+    until Label and Label.Text == "Rojod Semarang"
 
-local function SpawningTruck()
-    local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
-    if not Root then return end
-
-    Root.CFrame = CFrame.new(-21782.941, 1042.03, -26786.959)
-    safeWait(1.5, 2)
-
-    if Vim then
-        Vim:SendKeyEvent(true, "F", false, game)
-        safeWait(0.2, 0.3)
-        Vim:SendKeyEvent(false, "F", false, game)
-        safeWait(4.5, 5)
-    else
-        warn("VirtualInputManager not found")
-    end
-
-    local Car = workspace:FindFirstChild("Vehicles") and workspace.Vehicles:FindFirstChild(CarName)
-    local Humanoid = Player.Character and Player.Character:FindFirstChild("Humanoid")
-    local Seat = Car and Car:FindFirstChild("DriveSeat")
-
-    if Humanoid and Seat then
-        pcall(function() Seat:Sit(Humanoid) end)
-        safeWait(0.3, 0.6)
-        if Vim then
-            Vim:SendKeyEvent(true, "Space", false, game)
-            safeWait(0.1, 0.2)
-            Vim:SendKeyEvent(false, "Space", false, game)
-        end
-    end
-
-    local Trailer = Car and Car:FindFirstChild("Trailer1")
-    if Trailer then
-        pcall(function() Trailer:Destroy() end)
+    if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
+        Player.Character.HumanoidRootPart.Anchored = false
     end
 end
 
-local function MovingCharacterToDestination(Destination)
+-- Fungsi spawn mobil + langsung duduk + destroy trailer
+function SpawningTruck()
+
+	local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
+	if not Root then return end
+
+	Root.CFrame = CFrame.new(-21782.941, 1042.03, -26786.959)
+
+	task.wait(2)
+	local Vim = game:GetService("VirtualInputManager")
+	Vim:SendKeyEvent(true, "F", false, game)
+	task.wait(0.3)
+	Vim:SendKeyEvent(false, "F", false, game)
+	task.wait(5)
+
+	local Car = workspace.Vehicles:FindFirstChild(CarName)
+	local Humanoid = Player.Character and Player.Character:FindFirstChild("Humanoid")
+	local Seat = Car and Car:FindFirstChild("DriveSeat")
+
+	if Humanoid and Seat then
+		pcall(function() Seat:Sit(Humanoid) end)
+		task.wait(0.5)
+		Vim:SendKeyEvent(true, "Space", false, game)
+		task.wait(0.1)
+		Vim:SendKeyEvent(false, "Space", false, game)
+	end
+
+	local Trailer = Car and Car:FindFirstChild("Trailer1")
+	if Trailer then
+		Trailer:Destroy()
+		print("Trailer destroyed to prevent interference.")
+	end
+
+end
+
+function MovingCharacterToDestination(Destination)
     local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
-    local Car = workspace:FindFirstChild("Vehicles") and workspace.Vehicles:FindFirstChild(CarName)
+    local Car = workspace.Vehicles:FindFirstChild(CarName)
+
     if not (Root and Car) then return end
 
-    -- Notifikasi saat memulai teleportasi ke tujuan
-    WindUI:Notify({
-        Title = "Teleporting...",
-        Content = "Go to rojod semarang...",
-        Icon = "plane-takeoff",
-        Duration = 5,
-    })
-
     if not Car.PrimaryPart then
-        for _, part in ipairs(Car:GetDescendants()) do
-            if part:IsA("BasePart") then
-                Car.PrimaryPart = part
+        for _, Part in ipairs(Car:GetDescendants()) do
+            if Part:IsA("BasePart") then
+                Car.PrimaryPart = Part
                 break
             end
         end
     end
 
-    local follow = true
+    local Follow = true
     task.spawn(function()
-        while follow and Car.PrimaryPart do
-            Car:PivotTo(Root.CFrame + Vector3.new(5, 0, 0))
-            task.wait(0.4)
+        while Follow do
+            if Car.PrimaryPart then
+                Car:PivotTo(Root.CFrame + Vector3.new(5, 0, 0))
+            end
+            task.wait(0.15)
         end
     end)
 
-    SafeTween(Root, Root.CFrame + Vector3.new(0, 100, 0), 0.4)
-    safeWait(0.1, 0.2)
-    SafeTween(Root, CFrame.new(Destination.Position + Vector3.new(0, 100, 0)), 1.6)
-    safeWait(0.1, 0.2)
-    SafeTween(Root, Destination, 1.8)
+    local AboveStart = Root.CFrame + Vector3.new(0, 100, 0)
+    local AboveDest = CFrame.new(Destination.Position + Vector3.new(0, 100, 0))
 
-    follow = false
+    local tween1 = TweenService:Create(Root, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {CFrame = AboveStart})
+    tween1:Play()
+    tween1.Completed:Wait()
+
+    local tween2 = TweenService:Create(Root, TweenInfo.new(1.6, Enum.EasingStyle.Sine), {CFrame = AboveDest})
+    tween2:Play()
+    tween2.Completed:Wait()
+
+    local tween3 = TweenService:Create(Root, TweenInfo.new(1.8, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {CFrame = Destination})
+    tween3:Play()
+    tween3.Completed:Wait()
+
+    Follow = false
+
     Root.Anchored = true
     if Car.PrimaryPart then Car.PrimaryPart.Anchored = true end
-    safeWait(0.6, 0.9)
+
+    task.wait(0.8)
+
     if Car.PrimaryPart then Car.PrimaryPart.Anchored = false end
-    Root.Anchored = false
 end
 
 local function CountdownTeleport(seconds)
     WindUI:Notify({
         Title = "Countdown Started",
         Content = "Teleporting in " .. seconds .. " seconds...",
-        Icon = "timer",
+        Icon = "chart-pie",
         Duration = 4,
     })
 
     for i = seconds, 1, -1 do
+        if _G.ParagraphAutoFarmTimer then
+            _G.ParagraphAutoFarmTimer:SetDesc("Teleporting dalam " .. i .. " detik")
+        end
         print("Teleporting in " .. i .. "s")
         task.wait(1)
     end
-end
 
-local function SitInVehicle()
-    local Car = workspace:FindFirstChild("Vehicles") and workspace.Vehicles:FindFirstChild(CarName)
-    local Hum = Player.Character and Player.Character:FindFirstChild("Humanoid")
-    local Seat = Car and Car:FindFirstChild("DriveSeat")
-    if Hum and Seat then
-        pcall(function() Seat:Sit(Hum) end)
+    if _G.ParagraphAutoFarmTimer then
+        _G.ParagraphAutoFarmTimer:SetDesc("Teleportasi dimulai!")
     end
 end
 
-local function CarTween(TargetCFrame)
-    local Car = workspace:FindFirstChild("Vehicles") and workspace.Vehicles:FindFirstChild(CarName)
-    if not Car then return end
-
-    if not Car.PrimaryPart then
-        local Seat = Car:FindFirstChild("DriveSeat")
-        if Seat then
-            Car.PrimaryPart = Seat
-        else
-            return
-        end
-    end
-
-    local temp = Instance.new("CFrameValue", workspace)
-    temp.Value = Car:GetPivot()
-
-    local tween = TweenService:Create(temp, TweenInfo.new(3, Enum.EasingStyle.Linear), {
-        Value = TargetCFrame
-    })
-
-    temp:GetPropertyChangedSignal("Value"):Connect(function()
-        Car:PivotTo(temp.Value)
-    end)
-
-    tween:Play()
-    tween.Completed:Wait()
-    temp:Destroy()
-
-    safeWait(0.2, 0.3)
+function SitInVehicle()
+	local Car = workspace.Vehicles:FindFirstChild(CarName)
+	local Hum = Player.Character and Player.Character:FindFirstChild("Humanoid")
+	local Seat = Car and Car:FindFirstChild("DriveSeat")
+	if Hum and Seat then pcall(function() Seat:Sit(Hum) end) end
 end
 
-Tab:Toggle({
-    Title = "Start Autofarm Safe",
+function CarTween(TargetCFrame)
+
+	local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
+	Root.Anchored = false
+
+	task.wait(0.2)
+
+	local Car = workspace.Vehicles:FindFirstChild(CarName)
+	if not Car then warn("Vehicle not found.") return end
+	if not Car.PrimaryPart then
+		local Seat = Car:FindFirstChild("DriveSeat")
+		if Seat then Car.PrimaryPart = Seat else return end
+	end
+
+	local Temp = Instance.new("CFrameValue", workspace)
+	Temp.Value = Car:GetPivot()
+
+	local Tween = game:GetService("TweenService"):Create(Temp, TweenInfo.new(3, Enum.EasingStyle.Linear), {
+		Value = TargetCFrame
+	})
+
+	Temp:GetPropertyChangedSignal("Value"):Connect(function()
+		Car:PivotTo(Temp.Value)
+	end)
+
+	Tween:Play()
+	Tween.Completed:Wait()
+	Temp:Destroy()
+
+	game.ReplicatedStorage.NetworkContainer.RemoteEvents.Job:FireServer("Truck")
+
+	task.wait(0.2)
+	local Root = Player.Character:FindFirstChild("HumanoidRootPart")
+	Root.Anchored = true
+	task.wait(0.2)
+	Root.Anchored = false
+	task.wait(0.02)
+
+end
+
+
+local autofarmActive = false
+
+local Toggle = Tab:Toggle({
+    Title = "Start Autofarm",
     Type = "Toggle",
     Default = false,
     Callback = function(state)
         autofarmActive = state
+        print("Status 'auto farm' diatur ke:", autofarmActive)
+
         if autofarmActive then
-            print("Autofarm started.")
+            -- ✅ Notifikasi saat aktif
+            WindUI:Notify({
+                Title = "Autofarm Aktif",
+                Content = "Sistem sedang berjalan secara otomatis.",
+                Icon = "plane-takeoff",
+                Duration = 5,
+            })
+
             task.spawn(function()
+                print("Proses AutoFarm dimulai...")
+
                 while autofarmActive do
+
+                    -- STEP 1: Ambil Job
+                    if not autofarmActive then break end
+                    print("[STEP 1] Tween ke tempat Job")
                     TweenToJob()
-                    safeWait(0.5, 1)
+                    task.wait(0.5)
+
+                    -- STEP 2: Ambil Job via ProximityPrompt
+                    if not autofarmActive then break end
+                    print("[STEP 2] Mengambil Job Truck")
                     TakingJob()
-                    safeWait(0.5, 1)
+                    task.wait(0.5)
+
+                    -- STEP 3: Spawn Kendaraan
+                    if not autofarmActive then break end
+                    print("[STEP 3] Spawn kendaraan player")
                     SpawningTruck()
-                    safeWait(0.5, 1)
+                    task.wait(0.5)
+
+                    -- STEP 4: Teleport ke Rojod Semarang
+                    if not autofarmActive then break end
+                    print("[STEP 4] Teleport ke Rojod Semarang")
                     MovingCharacterToDestination(CFrame.new(-50937.152, 1012.215, -86353.031))
-                    safeWait(0.5, 1)
+                    task.wait(0.5)
+
+                    -- STEP 5: Countdown sebelum lanjut
+                    if not autofarmActive then break end
+                    print("[STEP 5] Countdown sebelum lanjutkan perjalanan")
                     CountdownTeleport(40)
-                    safeWait(0.5, 1)
+                    task.wait(0.5)
+
+                    -- STEP 6: Duduk di kendaraan
+                    if not autofarmActive then break end
+                    print("[STEP 6] Duduk di kendaraan")
                     SitInVehicle()
-                    safeWait(0.5, 1)
+                    task.wait(0.5)
+
+                    -- STEP 7: Tween mobil ke posisi akhir
+                    if not autofarmActive then break end
+                    print("[STEP 7] Tween kendaraan ke tujuan akhir")
                     CarTween(CFrame.new(-50899.6015625, 1013.977783203125, -86534.9765625))
-                    safeWait(1, 2)
+                    task.wait(1)
                 end
-                print("Autofarm stopped.")
+
+                -- ✅ Notifikasi & log saat AutoFarm dihentikan
+                print("Proses AutoFarm dihentikan.")
+                WindUI:Notify({
+                    Title = "Autofarm Nonaktif",
+                    Content = "Sistem telah dihentikan.",
+                    Icon = "plane-landing",
+                    Duration = 4,
+                })
             end)
         else
-            print("Autofarm deactivated.")
+            -- Jika toggle dimatikan sebelum proses jalan
+            WindUI:Notify({
+                Title = "Autofarm Nonaktif",
+                Content = "Sistem telah dihentikan.",
+                Icon = "plane-landing",
+                Duration = 4,
+            })
         end
     end
 })
 
-local Section = Tab:Section({ 
-    Title = "Autofarm Configuration",
-    TextXAlignment = "Left",
-    TextSize = 17, -- Default Size
-})
-
-local optimizeMode = false
-local pingThreshold = 150 -- batas ping ms
-local checkInterval = 5 -- cek ping tiap 5 detik
-
--- Fungsi dapatkan ping Roblox (ms)
-local function getPing()
-    local stats = game:GetService("Stats")
-    local network = stats.NetworkServerStatsItem
-    if network then
-        return network.Latency * 1000 -- detik ke ms
-    end
-    return 0
-end
-
--- Fungsi aktifkan optimize mode
-local function applyOptimizeMode()
-    if optimizeMode then return end
-    optimizeMode = true
-    print("[OptimizeMode] Activated")
-
-    pcall(function()
-        local lighting = game:GetService("Lighting")
-        lighting.GlobalShadows = false
-        lighting.FogEnd = 1000
-
-        local userSettings = settings():GetService("UserGameSettings")
-        userSettings.VideoQualityLevel = 1
-        if setfpscap then setfpscap(30) end
-
-        -- Optimasi FPS & Rendering
-        settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
-        settings().Rendering.EditQualityLevel = Enum.QualityLevel.Level01
-        settings().Rendering.MeshPartDetailLevel = Enum.MeshPartDetailLevel.Low
-
-        -- Matikan efek grafis berat
-        for _, v in pairs(lighting:GetDescendants()) do
-            if v:IsA("PostEffect") or v:IsA("BloomEffect") or v:IsA("SunRaysEffect") or v:IsA("ColorCorrectionEffect") then
-                v.Enabled = false
-            end
-        end
-
-        -- Optimasi terrain & water
-        if workspace:FindFirstChildOfClass("Terrain") then
-            local terrain = workspace.Terrain
-            terrain.WaterWaveSize = 0
-            terrain.WaterWaveSpeed = 0
-            terrain.WaterReflectance = 0
-            terrain.WaterTransparency = 1
-        end
-
-        -- Kurangi physics & streaming
-        settings().Physics.AllowSleep = true
-        workspace.StreamingEnabled = true
-
-        -- Nonaktifkan ParticleEmitter, Trail, dan Smoke di workspace
-        for _, obj in ipairs(workspace:GetDescendants()) do
-            if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Smoke") then
-                obj.Enabled = false
-            end
-        end
-
-        -- Optimasi GUI (matikan CoreGui)
-        game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.All, false)
-    end)
-end
-
--- Fungsi matikan optimize mode (balik normal)
-local function revertOptimizeMode()
-    if not optimizeMode then return end
-    optimizeMode = false
-    print("[OptimizeMode] Deactivated")
-
-    pcall(function()
-        local lighting = game:GetService("Lighting")
-        lighting.GlobalShadows = true
-        lighting.FogEnd = 100000
-
-        local userSettings = settings():GetService("UserGameSettings")
-        userSettings.VideoQualityLevel = 10
-        if setfpscap then setfpscap(60) end
-
-        -- Kembalikan efek grafis
-        for _, v in pairs(lighting:GetDescendants()) do
-            if v:IsA("PostEffect") or v:IsA("BloomEffect") or v:IsA("SunRaysEffect") or v:IsA("ColorCorrectionEffect") then
-                v.Enabled = true
-            end
-        end
-
-        -- Kembalikan terrain & water
-        if workspace:FindFirstChildOfClass("Terrain") then
-            local terrain = workspace.Terrain
-            terrain.WaterWaveSize = 1
-            terrain.WaterWaveSpeed = 1
-            terrain.WaterReflectance = 0.2
-            terrain.WaterTransparency = 0
-        end
-
-        -- Kembalikan physics & streaming
-        settings().Physics.AllowSleep = false
-        workspace.StreamingEnabled = false
-
-        -- Aktifkan lagi ParticleEmitter, Trail, dan Smoke
-        for _, obj in ipairs(workspace:GetDescendants()) do
-            if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Smoke") then
-                obj.Enabled = true
-            end
-        end
-
-        -- Aktifkan kembali CoreGui
-        game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.All, true)
-    end)
-end
-
-local Toggle = Tab:Toggle({
-    Title = "Optimize Performance Mode",
-    Desc = "Reduce lag by improving fps, ping, cpu, and memory usage.",
-    Default = false,
-    Callback = function(state)
-        if state then
-            Window:Dialog({
-                Title = "Optimize Mode",
-                Content = "Performance mode has been activated.",
-                Icon = "circle-check",
-                Buttons = {
-                    {
-                        Title = "OK",
-                        Variant = "Secondary",
-                        Callback = function() print("OK pressed") end,
-                    },
-                },
-            })
-
-            -- Start loop cek ping dan optimize otomatis
-            task.spawn(function()
-                while Tab:GetToggleState("Optimize Performance Mode") do
-                    local ping = getPing()
-                    print("[PingCheck] Current ping: " .. ping .. " ms")
-
-                    if ping > pingThreshold then
-                        applyOptimizeMode()
-                    else
-                        revertOptimizeMode()
-                    end
-
-                    task.wait(checkInterval)
-                end
-
-                -- Pastikan mode off saat toggle dimatikan
-                revertOptimizeMode()
-            end)
-
-        else
-            Window:Dialog({
-                Title = "Optimize Mode Off",
-                Content = "Performance mode has been turned off.",
-                Icon = "circle-check",
-                Buttons = {
-                    {
-                        Title = "OK",
-                        Variant = "Secondary",
-                    },
-                },
-            })
-            revertOptimizeMode()
-        end
-    end,
-})
-
-local Toggle = Tab:Toggle({
-    Title = "Optimize Ping Based Mode", 
-    Desc = "Minimizes lag and stabilizes connection for smoother and more responsive gameplay.", 
-    Callback = function(state)
-        if state then
-            Window:Dialog({
-                Title = "Optimize Mode",
-                Content = "Successfully activated optimize mode.",
-                Icon = "circle-check",
-                Buttons = {
-                    {
-                        Title = "OK",
-                        Variant = "Secondary",
-                        Callback = function()
-                            print("OK pressed")
-                        end,
-                    },
-                },
-            })
-
-            -- Start loop cek ping
-            task.spawn(function()
-                while Tab:GetToggleState("Optimize Ping Based Mode") do
-                    local ping = getPing()
-                    print("[PingCheck] Current ping: " .. ping .. " ms")
-                    if ping > pingThreshold then
-                        applyOptimizeMode()
-                    else
-                        revertOptimizeMode()
-                    end
-                    task.wait(checkInterval)
-                end
-                revertOptimizeMode() -- pastikan optimize dimatikan saat toggle off
-            end)
-        else
-            revertOptimizeMode()
-        end
-    end,
+_G.ParagraphAutoFarmTimer = Tab:Paragraph({
+    Title = "Autofarm Statistics",
+    Desc = "Please Start Autofarm",
+    Image = "chart-pie",
+    ImageSize = 30,
+    ThumbnailSize = 10
 })

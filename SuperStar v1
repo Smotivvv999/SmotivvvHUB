@@ -59,10 +59,12 @@ local TweenService = game:GetService("TweenService")
 local Vim = game:GetService("VirtualInputManager")
 local autofarmActive = false
 
+-- Format tanggal dan waktu
 _G.getFormattedDateTime = function()
     return os.date("%d-%m-%Y") .. " | " .. os.date("%H:%M:%S")
 end
 
+-- Update paragraph setiap detik dengan waktu
 _G.startDateTimeUpdater = function(paragraph)
     task.spawn(function()
         while true do
@@ -74,9 +76,9 @@ _G.startDateTimeUpdater = function(paragraph)
     end)
 end
 
--- Tambahan variabel untuk waktu
+-- Timer durasi AutoFarm
 local startTime
-local paragraphTimer -- ini akan menyimpan referensi Paragraph waktu
+local paragraphTimer
 
 local function formatTime(seconds)
     local hours = math.floor(seconds / 3600)
@@ -85,7 +87,6 @@ local function formatTime(seconds)
     return string.format("%02d:%02d:%02d", hours, minutes, secs)
 end
 
--- Fungsi mulai timer AutoFarm
 local function StartAutoFarmTimer()
     startTime = tick()
     task.spawn(function()
@@ -97,16 +98,11 @@ local function StartAutoFarmTimer()
     end)
 end
 
--- Fungsi berhenti timer
 local function StopAutoFarmTimer()
     local totalTime = math.floor(tick() - startTime)
     if paragraphTimer then
         paragraphTimer:SetDesc("AutoFarm selesai. Total waktu: " .. formatTime(totalTime))
     end
-end
-
-local function safeWait(min, max)
-    task.wait(min + math.random() * (max - min))
 end
 
 local function SafeTween(part, targetCFrame, time, style)
@@ -115,10 +111,10 @@ local function SafeTween(part, targetCFrame, time, style)
     local success, tween = pcall(function()
         return TweenService:Create(part, tweenInfo, {CFrame = targetCFrame})
     end)
-    if not success or not tween then return end
-
-    tween:Play()
-    tween.Completed:Wait()
+    if success and tween then
+        tween:Play()
+        tween.Completed:Wait()
+    end
 end
 
 local function WaitForRootPart(timeout)
@@ -129,7 +125,7 @@ local function WaitForRootPart(timeout)
         root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
         if root then break end
         task.wait(0.1)
-        t = t + 0.1
+        t += 0.1
     until t >= timeout
     return root
 end
@@ -230,7 +226,6 @@ local function MovingCharacterToDestination(Destination)
     local Car = workspace:FindFirstChild("Vehicles") and workspace.Vehicles:FindFirstChild(CarName)
     if not (Root and Car) then return end
 
-    -- Notifikasi saat memulai teleportasi ke tujuan
     WindUI:Notify({
         Title = "Teleporting...",
         Content = "Go to rojod semarang...",
@@ -268,7 +263,6 @@ local function MovingCharacterToDestination(Destination)
     if Car.PrimaryPart then Car.PrimaryPart.Anchored = false end
     Root.Anchored = false
 
-    -- ✅ Tambahkan ini setelah teleport berhasil:
     _G.teleportCount += 1
 
     if _G.ParagraphTeleportCount and _G.ParagraphTeleportCount.SetDesc then
@@ -350,23 +344,45 @@ Tab:Toggle({
 
             task.spawn(function()
                 while autofarmActive do
+                    -- Step 1: Menuju lokasi Job
+                    print("Step 1: Menuju lokasi Job...")
                     TweenToJob()
-                    safeWait(0.5, 1)
+                    task.wait(1.5)
+
+                    -- Step 2: Mengambil Job
+                    print("Step 2: Mengambil Job...")
                     TakingJob()
-                    safeWait(0.5, 1)
+                    task.wait(1.5)
+
+                    -- Step 3: Memunculkan truk
+                    print("Step 3: Memunculkan truk...")
                     SpawningTruck()
-                    safeWait(0.5, 1)
+                    task.wait(1.5)
+
+                    -- Step 4: Bergerak ke posisi truk
+                    print("Step 4: Bergerak ke posisi truk...")
                     MovingCharacterToDestination(CFrame.new(-50937.152, 1012.215, -86353.031))
-                    safeWait(20, 1)
-                    CountdownTeleport(20)  -- akan update paragraph di dalamnya
-                    safeWait(0.5, 1)
+                    task.wait(1.5)
+
+                    -- Step 5: Menunggu proses teleport
+                    print("Step 5: Menunggu proses teleport (38 detik)...")
+                    CountdownTeleport(38)
+                    task.wait(1.5)
+
+                    -- Step 6: Duduk di kendaraan
+                    print("Step 6: Duduk di kendaraan...")
                     SitInVehicle()
-                    safeWait(0.5, 1)
+                    task.wait(1.5)
+
+                    -- Step 7: Menggerakkan kendaraan ke jalan
+                    print("Step 7: Menggerakkan kendaraan ke jalan...")
                     CarTween(CFrame.new(-50899.6015625, 1013.977783203125, -86534.9765625))
-                    safeWait(1, 2)
+                    task.wait(1.5)
                 end
+
                 print("Autofarm stopped.")
             end)
+
         else
             StopAutoFarmTimer()
             print("Autofarm deactivated.")

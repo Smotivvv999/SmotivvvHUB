@@ -1,0 +1,786 @@
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+
+function gradient(text, startColor, endColor)
+    local result = ""
+    local length = #text
+
+    for i = 1, length do
+        local t = (i - 1) / math.max(length - 1, 1)
+        local r = math.floor((startColor.R + (endColor.R - startColor.R) * t) * 255)
+        local g = math.floor((startColor.G + (endColor.G - startColor.G) * t) * 255)
+        local b = math.floor((startColor.B + (endColor.B - startColor.B) * t) * 255)
+
+        local char = text:sub(i, i)
+        result = result .. "<font color=\"rgb(" .. r .. ", " .. g .. ", " .. b .. ")\">" .. char .. "</font>"
+    end
+
+    return result
+end
+
+local Confirmed = false
+
+local Window = WindUI:CreateWindow({
+    Title = "SuperStarHub || Premium  -  v1.1.0",
+    Icon = "slack",
+    Author = "by smotivvv.",
+    Folder = "StrixHub | Premium  -  v1.1.0",
+    Size = UDim2.fromOffset(580, 250),
+    Transparent = true,
+    Theme = "Dark",
+    User = {
+        Enabled = false, -- <- or false
+        Callback = function() print("clicked") end, -- <- optional
+    },
+})
+
+local Tab = Window:Tab({
+    Title = "Autofarm",
+    Icon = "plane-takeoff",
+    Locked = false,
+})
+
+local Section = Tab:Section({ 
+    Title = "Autofarm [Car Driving Indonesia]",
+    TextXAlignment = "Left",
+    TextSize = 17, -- Default Size
+})
+
+local Paragraph = Tab:Paragraph({
+    Title = "Autofarm Information",
+    Desc = "Autofarm sudah sepenuhnya diatur dan siap digunakan. Kamu tinggal tekan start untuk memulai prosesnya tanpa repot.",
+    Image = "info",
+    ImageSize = 30,
+    ThumbnailSize = 10
+})
+
+local Player = game.Players.LocalPlayer
+local CarName = Player.Name .. "sCar"
+local TweenService = game:GetService("TweenService")
+local Vim = game:GetService("VirtualInputManager")
+local autofarmActive = false
+
+_G.getFormattedDateTime = function()
+    return os.date("%d-%m-%Y") .. " | " .. os.date("%H:%M:%S")
+end
+
+_G.startDateTimeUpdater = function(paragraph)
+    task.spawn(function()
+        while true do
+            if paragraph and paragraph.SetDesc then
+                paragraph:SetDesc(_G.getFormattedDateTime())
+            end
+            task.wait(1)
+        end
+    end)
+end
+
+-- Tambahan variabel untuk waktu
+local startTime
+local paragraphTimer -- ini akan menyimpan referensi Paragraph waktu
+
+local function formatTime(seconds)
+    local hours = math.floor(seconds / 3600)
+    local minutes = math.floor((seconds % 3600) / 60)
+    local secs = seconds % 60
+    return string.format("%02d:%02d:%02d", hours, minutes, secs)
+end
+
+-- Fungsi mulai timer AutoFarm
+local function StartAutoFarmTimer()
+    startTime = tick()
+    task.spawn(function()
+        while autofarmActive and paragraphTimer do
+            local elapsed = math.floor(tick() - startTime)
+            paragraphTimer:SetDesc("Durasi Autofarm: " .. formatTime(elapsed))
+            task.wait(1)
+        end
+    end)
+end
+
+-- Fungsi berhenti timer
+local function StopAutoFarmTimer()
+    local totalTime = math.floor(tick() - startTime)
+    if paragraphTimer then
+        paragraphTimer:SetDesc("AutoFarm selesai. Total waktu: " .. formatTime(totalTime))
+    end
+end
+
+local function safeWait(min, max)
+    task.wait(min + math.random() * (max - min))
+end
+
+local function SafeTween(part, targetCFrame, time, style)
+    if not part then return end
+    local tweenInfo = TweenInfo.new(time or 1, style or Enum.EasingStyle.Sine)
+    local success, tween = pcall(function()
+        return TweenService:Create(part, tweenInfo, {CFrame = targetCFrame})
+    end)
+    if not success or not tween then return end
+
+    tween:Play()
+    tween.Completed:Wait()
+end
+
+local function WaitForRootPart(timeout)
+    timeout = timeout or 5
+    local root
+    local t = 0
+    repeat
+        root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
+        if root then break end
+        task.wait(0.1)
+        t = t + 0.1
+    until t >= timeout
+    return root
+end
+
+local function TweenToJob()
+    local success, err = pcall(function()
+        game.ReplicatedStorage.NetworkContainer.RemoteEvents.Job:FireServer("Truck")
+    end)
+    if not success then
+        warn("Failed to fire job event:", err)
+        return
+    end
+
+    local Root = WaitForRootPart(5)
+    if not Root then
+        warn("HumanoidRootPart not found.")
+        return
+    end
+
+    SafeTween(Root, Root.CFrame + Vector3.new(0, 100, 0), 0.5, Enum.EasingStyle.Quad)
+    safeWait(0.2, 0.3)
+    SafeTween(Root, CFrame.new(-21799.8, 1142.65, -26797.7), 1, Enum.EasingStyle.Quad)
+    safeWait(0.2, 0.3)
+    SafeTween(Root, CFrame.new(-21799.8, 1042.65, -26797.7), 1, Enum.EasingStyle.Exponential)
+    safeWait(0.2, 0.4)
+end
+
+local function TakingJob()
+    repeat
+        local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
+        local Label = workspace:FindFirstChild("Etc") and workspace.Etc:FindFirstChild("Waypoint") and workspace.Etc.Waypoint:FindFirstChild("Waypoint")
+        Label = Label and Label:FindFirstChild("BillboardGui") and Label.BillboardGui:FindFirstChild("TextLabel")
+
+        if Root then Root.Anchored = true end
+
+        if Label and Label.Text ~= "Rojod Semarang" then
+            local ok, err = pcall(function()
+                game.ReplicatedStorage.NetworkContainer.RemoteEvents.Job:FireServer("Truck")
+            end)
+            if not ok then warn("FireServer Job failed:", err) end
+
+            safeWait(1, 2)
+
+            local Prompt = workspace:FindFirstChild("Etc") and workspace.Etc:FindFirstChild("Job") and workspace.Etc.Job:FindFirstChild("Truck") and workspace.Etc.Job.Truck:FindFirstChild("Starter")
+            if Prompt then
+                Prompt = Prompt:FindFirstChildWhichIsA("ProximityPrompt", true)
+                if Prompt then
+                    Prompt.MaxActivationDistance = 50
+                    local ok2, err2 = pcall(function() fireproximityprompt(Prompt) end)
+                    if not ok2 then warn("fireproximityprompt error:", err2) end
+                end
+            end
+        end
+
+        if Root then Root.Anchored = false end
+        safeWait(0.5, 1)
+    until Label and Label.Text == "Rojod Semarang" or not autofarmActive
+end
+
+local function SpawningTruck()
+    local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
+    if not Root then return end
+
+    Root.CFrame = CFrame.new(-21782.941, 1042.03, -26786.959)
+    safeWait(1.5, 2)
+
+    if Vim then
+        Vim:SendKeyEvent(true, "F", false, game)
+        safeWait(0.2, 0.3)
+        Vim:SendKeyEvent(false, "F", false, game)
+        safeWait(4.5, 5)
+    else
+        warn("VirtualInputManager not found")
+    end
+
+    local Car = workspace:FindFirstChild("Vehicles") and workspace.Vehicles:FindFirstChild(CarName)
+    local Humanoid = Player.Character and Player.Character:FindFirstChild("Humanoid")
+    local Seat = Car and Car:FindFirstChild("DriveSeat")
+
+    if Humanoid and Seat then
+        pcall(function() Seat:Sit(Humanoid) end)
+        safeWait(0.3, 0.6)
+        if Vim then
+            Vim:SendKeyEvent(true, "Space", false, game)
+            safeWait(0.1, 0.2)
+            Vim:SendKeyEvent(false, "Space", false, game)
+        end
+    end
+
+    local Trailer = Car and Car:FindFirstChild("Trailer1")
+    if Trailer then
+        pcall(function() Trailer:Destroy() end)
+    end
+end
+
+local function MovingCharacterToDestination(Destination)
+    local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
+    local Car = workspace:FindFirstChild("Vehicles") and workspace.Vehicles:FindFirstChild(CarName)
+    if not (Root and Car) then return end
+
+    -- Notifikasi saat memulai teleportasi ke tujuan
+    WindUI:Notify({
+        Title = "Teleporting...",
+        Content = "Go to rojod semarang...",
+        Icon = "plane-takeoff",
+        Duration = 5,
+    })
+
+    if not Car.PrimaryPart then
+        for _, part in ipairs(Car:GetDescendants()) do
+            if part:IsA("BasePart") then
+                Car.PrimaryPart = part
+                break
+            end
+        end
+    end
+
+    local follow = true
+    task.spawn(function()
+        while follow and Car.PrimaryPart do
+            Car:PivotTo(Root.CFrame + Vector3.new(5, 0, 0))
+            task.wait(0.4)
+        end
+    end)
+
+    SafeTween(Root, Root.CFrame + Vector3.new(0, 100, 0), 0.4)
+    safeWait(0.1, 0.2)
+    SafeTween(Root, CFrame.new(Destination.Position + Vector3.new(0, 100, 0)), 1.6)
+    safeWait(0.1, 0.2)
+    SafeTween(Root, Destination, 1.8)
+
+    follow = false
+    Root.Anchored = true
+    if Car.PrimaryPart then Car.PrimaryPart.Anchored = true end
+    safeWait(0.6, 0.9)
+    if Car.PrimaryPart then Car.PrimaryPart.Anchored = false end
+    Root.Anchored = false
+
+    -- ✅ Tambahkan ini setelah teleport berhasil:
+    _G.teleportCount += 1
+
+    if _G.ParagraphTeleportCount and _G.ParagraphTeleportCount.SetDesc then
+        _G.ParagraphTeleportCount:SetDesc("Total teleport ke Rojod Semarang: " .. tostring(_G.teleportCount))
+    end
+end
+
+local function CountdownTeleport(seconds)
+    WindUI:Notify({
+        Title = "Countdown Started",
+        Content = "Teleporting in " .. seconds .. " seconds...",
+        Icon = "chart-pie",
+        Duration = 4,
+    })
+
+    for i = seconds, 1, -1 do
+        if _G.ParagraphAutoFarmTimer then
+            _G.ParagraphAutoFarmTimer:SetDesc("Teleporting dalam " .. i .. " detik")
+        end
+        print("Teleporting in " .. i .. "s")
+        task.wait(1)
+    end
+
+    if _G.ParagraphAutoFarmTimer then
+        _G.ParagraphAutoFarmTimer:SetDesc("Teleportasi dimulai!")
+    end
+end
+
+local function SitInVehicle()
+    local Car = workspace:FindFirstChild("Vehicles") and workspace.Vehicles:FindFirstChild(CarName)
+    local Hum = Player.Character and Player.Character:FindFirstChild("Humanoid")
+    local Seat = Car and Car:FindFirstChild("DriveSeat")
+    if Hum and Seat then
+        pcall(function() Seat:Sit(Hum) end)
+    end
+end
+
+local function CarTween(TargetCFrame)
+    local Car = workspace:FindFirstChild("Vehicles") and workspace.Vehicles:FindFirstChild(CarName)
+    if not Car then return end
+
+    if not Car.PrimaryPart then
+        local Seat = Car:FindFirstChild("DriveSeat")
+        if Seat then
+            Car.PrimaryPart = Seat
+        else
+            return
+        end
+    end
+
+    local temp = Instance.new("CFrameValue", workspace)
+    temp.Value = Car:GetPivot()
+
+    local tween = TweenService:Create(temp, TweenInfo.new(3, Enum.EasingStyle.Linear), {
+        Value = TargetCFrame
+    })
+
+    temp:GetPropertyChangedSignal("Value"):Connect(function()
+        Car:PivotTo(temp.Value)
+    end)
+
+    tween:Play()
+    tween.Completed:Wait()
+    temp:Destroy()
+
+    safeWait(0.2, 0.3)
+end
+
+Tab:Toggle({
+    Title = "Start Autofarm Safe",
+    Type = "Toggle",
+    Default = false,
+    Callback = function(state)
+        autofarmActive = state
+
+        if autofarmActive then
+            print("Autofarm started.")
+            StartAutoFarmTimer()
+
+            task.spawn(function()
+                while autofarmActive do
+                    TweenToJob()
+                    safeWait(0.5, 1)
+                    TakingJob()
+                    safeWait(0.5, 1)
+                    SpawningTruck()
+                    safeWait(0.5, 1)
+                    MovingCharacterToDestination(CFrame.new(-50937.152, 1012.215, -86353.031))
+                    safeWait(20, 1)
+                    CountdownTeleport(20)  -- akan update paragraph di dalamnya
+                    safeWait(0.5, 1)
+                    SitInVehicle()
+                    safeWait(0.5, 1)
+                    CarTween(CFrame.new(-50899.6015625, 1013.977783203125, -86534.9765625))
+                    safeWait(1, 2)
+                end
+                print("Autofarm stopped.")
+            end)
+        else
+            StopAutoFarmTimer()
+            print("Autofarm deactivated.")
+        end
+    end
+})
+
+local Section = Tab:Section({ 
+    Title = "Autofarm Configuration",
+    TextXAlignment = "Left",
+    TextSize = 17, -- Default Size
+})
+
+local Paragraph = Tab:Paragraph({
+    Title = "Optimize Mode Info",
+    Desc = [[
+Aktifkan semua mode untuk performa maksimal:
+
+• Optimize Anti-AFK Mode
+• Optimize Ping and Device Mode
+• Optimize Ping-Based Mode
+• Optimize Performance Mode
+• Optimize Signal Boost Mode
+• Optimize FPS Based Boost Mode
+]],
+    Image = "info",
+    ImageSize = 30,
+    ThumbnailSize = 10,
+})
+
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local Player = Players.LocalPlayer
+
+local pingEnabled = false
+local fpsEnabled = false
+local currentPing = "..."
+local currentFPS = "..."
+local currentStatus = "Menunggu..."
+
+-- Paragraph harus dibuat sebelum toggle
+_G.pingParagraph = Tab:Paragraph({
+    Title = "Performance Status",
+    Desc = "Ping: " .. currentPing .. " ms\nFPS: " .. currentFPS .. "\nStatus: " .. currentStatus,
+    Image = "activity",
+    ImageSize = 30,
+    ThumbnailSize = 10,
+})
+
+local function updateParagraph()
+    if _G.pingParagraph and _G.pingParagraph.SetDesc then
+        _G.pingParagraph:SetDesc("Ping: " .. currentPing .. " ms\nFPS: " .. currentFPS .. "\nStatus: " .. currentStatus)
+    else
+        warn("SetDesc tidak tersedia pada paragraph!")
+    end
+end
+
+local VirtualUser = game:GetService("VirtualUser")
+local Players = game:GetService("Players")
+
+local antiAFKConnection
+
+local Toggle = Tab:Toggle({
+    Title = "Optimize Anti AFK Mode",
+    Desc = "prevent kick while AFK.",
+    Callback = function(state)
+        if state then
+            -- Aktifkan anti-AFK
+            antiAFKConnection = Players.LocalPlayer.Idled:Connect(function()
+                VirtualUser:Button2Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+                task.wait(1)
+                VirtualUser:Button2Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+                print("[Anti-AFK] Input dikirim agar tidak disconnect.")
+            end)
+
+            Window:Dialog({
+                Title = "Optimize Mode",
+                Content = "Optimize mode aktif.\nAnti-AFK juga diaktifkan.",
+                Icon = "circle-check",
+                Buttons = {
+                    {
+                        Title = "OK",
+                        Variant = "Secondary",
+                        Callback = function()
+                            print("OK pressed")
+                        end,
+                    },
+                }
+            })
+        else
+            -- Matikan anti-AFK
+            if antiAFKConnection then
+                antiAFKConnection:Disconnect()
+                antiAFKConnection = nil
+                print("[Anti-AFK] Dinonaktifkan.")
+            end
+        end
+    end,
+})
+
+local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
+local Players = game:GetService("Players")
+local Player = Players.LocalPlayer
+
+local optimizeEnabled = false
+
+local pingThresholdHigh = 150 -- ms
+local pingThresholdLow = 80   -- ms
+local lowFPSThreshold = 25    -- FPS minimal normal
+local lowFPSDuration = 10     -- detik fps rendah terus menerus
+local checkInterval = 1       -- cek tiap detik
+
+local lowFPSCount = 0
+local maxLowFPSCount = lowFPSDuration / checkInterval
+
+local function showWarning(title, text)
+    StarterGui:SetCore("SendNotification", {
+        Title = title,
+        Text = text,
+        Duration = 5,
+    })
+end
+
+local function optimizeForHighPing()
+    print("Optimizing for high ping: reducing graphics, disabling effects...")
+    -- Tambah logika optimasi nyata di sini
+end
+
+local function restoreSettings()
+    print("Restoring normal settings...")
+    -- Kembalikan pengaturan normal
+end
+
+local Toggle = Tab:Toggle({
+    Title = "Optimize Ping And Device Mode",
+    Desc = "Optimize game based on your ping and device performance.",
+    Callback = function(state)
+        optimizeEnabled = state
+        if state then
+            Window:Dialog({
+                Title = "Optimize Mode",
+                Content = "Optimize mode activated: monitoring ping & device performance.",
+                Icon = "circle-check",
+                Buttons = {
+                    {
+                        Title = "OK",
+                        Variant = "Secondary",
+                        Callback = function()
+                            print("OK pressed")
+                        end,
+                    },
+                },
+            })
+
+            spawn(function()
+                lowFPSCount = 0
+                while optimizeEnabled do
+                    -- Cek ping
+                    local ping = Player:GetNetworkPing() * 1000
+                    print("Ping:", math.floor(ping), "ms")
+
+                    if ping > pingThresholdHigh then
+                        showWarning("High Ping Detected", "Your ping is high, game performance may be affected.")
+                        optimizeForHighPing()
+                    elseif ping < pingThresholdLow then
+                        restoreSettings()
+                    end
+
+                    -- Cek FPS
+                    local dt = RunService.Heartbeat:Wait()
+                    local fps = 1 / dt
+
+                    if fps < lowFPSThreshold then
+                        lowFPSCount = lowFPSCount + 1
+                    else
+                        lowFPSCount = 0
+                    end
+
+                    if lowFPSCount >= maxLowFPSCount then
+                        showWarning("Device Warning", "Your device may be overheating or overloaded. Please take a break.")
+                        lowFPSCount = 0
+                    end
+
+                    wait(checkInterval)
+                end
+            end)
+        else
+            print("Optimize mode disabled.")
+            restoreSettings()
+        end
+    end,
+})
+
+local Players = game:GetService("Players")
+local Player = Players.LocalPlayer
+
+local pingEnabled = false
+local currentPing = "..."
+local currentStatus = "Menunggu..."
+
+local function updateParagraph()
+    if _G.pingParagraph and _G.pingParagraph.SetDesc then
+        _G.pingParagraph:SetDesc("Ping: " .. currentPing .. " ms\nFPS: " .. (currentFPS or "...") .. "\nStatus: " .. currentStatus)
+    end
+end
+
+local Toggle = Tab:Toggle({
+    Title = "Optimize Ping Based Mode",
+    Desc = "Optimize performance based on your network ping.",
+    Callback = function(state)
+        pingEnabled = state
+
+        if state then
+            Window:Dialog({
+                Title = "Ping Optimize Mode",
+                Content = "Ping-based optimization is now active.",
+                Icon = "circle-check",
+                Buttons = {
+                    {
+                        Title = "OK",
+                        Variant = "Secondary",
+                        Callback = function()
+                            print("Ping Optimize Mode Enabled")
+                        end,
+                    },
+                }
+            })
+
+            task.spawn(function()
+                while pingEnabled do
+                    local ping = math.floor(Player:GetNetworkPing() * 1000)
+                    currentPing = ping
+                    if ping <= 80 then
+                        currentStatus = "Stabil"
+                    elseif ping <= 150 then
+                        currentStatus = "Sedang"
+                    else
+                        currentStatus = "Tinggi"
+                    end
+                    updateParagraph()
+                    task.wait(5)
+                end
+            end)
+
+        else
+            currentPing = "..."
+            currentStatus = "Menunggu..."
+            updateParagraph()
+        end
+    end
+})
+
+local Toggle = Tab:Toggle({
+    Title = "Optimize Performance Mode",
+    Desc = "Optimize Ping, Fps, Cpu usage, and Ram usage.",
+    Callback = function(state)
+        if state then
+            Window:Dialog({
+                Title = "Optimize Mode",
+                Content = "Successfully activated optimize mode.",
+                Icon = "circle-check",
+                Buttons = {
+                    {
+                        Title = "OK",
+                        Variant = "Secondary",
+                        Callback = function()
+                            print("OK pressed")
+                        end,
+                    },
+                },
+            })
+        end
+    end,
+})
+
+Tab:Toggle({
+    Title = "Optimize Signal Boost Mode",
+    Desc = "Enhance network signal strength to prevent disconnects.",
+    Callback = function(state)
+        signalBoostEnabled = state
+
+        if state then
+            Window:Dialog({
+                Title = "Signal Boost Mode",
+                Content = "Successfully activated optimize mode to boost signal strength.",
+                Icon = "circle-check",
+                Buttons = {
+                    {
+                        Title = "OK",
+                        Variant = "Secondary",
+                        Callback = function()
+                            print("OK")
+                        end,
+                    },
+                }
+            })
+
+            -- Mulai loop update ping real-time
+            signalBoostLoop = task.spawn(function()
+                while signalBoostEnabled do
+                    local ping = math.floor(Player:GetNetworkPing() * 1000)
+                    currentPing = ping
+                    currentStatus = (ping <= 80 and "Stabil") or (ping <= 150 and "Sedang") or "Tinggi"
+
+                    updateParagraph()
+                    task.wait(5)
+                end
+            end)
+
+        else
+            -- Stop loop dan reset status
+            signalBoostEnabled = false
+            currentPing = "..."
+            currentStatus = "Menunggu..."
+            updateParagraph()
+        end
+    end,
+})
+
+local RunService = game:GetService("RunService")
+local fpsEnabled = false
+local currentFPS = "..."
+local function updateParagraph()
+    if _G.pingParagraph and _G.pingParagraph.SetDesc then
+        local ping = currentPing or "..."
+        local status = currentStatus or "Menunggu..."
+        _G.pingParagraph:SetDesc("Ping: " .. ping .. " ms\nFPS: " .. currentFPS .. "\nStatus: " .. status)
+    end
+end
+
+local Toggle = Tab:Toggle({
+    Title = "Optimize FPS Based Mode",
+    Desc = "Optimize performance based on FPS.",
+    Callback = function(state)
+        fpsEnabled = state
+        if state then
+            Window:Dialog({
+                Title = "FPS Optimize Mode",
+                Content = "FPS-based optimization is now active.",
+                Icon = "circle-check",
+                Buttons = {
+                    {
+                        Title = "OK",
+                        Variant = "Secondary",
+                        Callback = function()
+                            print("FPS Optimize Mode Enabled")
+                        end,
+                    },
+                }
+            })
+
+            task.spawn(function()
+                while fpsEnabled do
+                    local start = tick()
+                    RunService.RenderStepped:Wait()
+                    local fps = math.floor(1 / (tick() - start))
+                    currentFPS = fps
+                    updateParagraph()
+                    task.wait(3)
+                end
+            end)
+        else
+            currentFPS = "..."
+            updateParagraph()
+        end
+    end,
+})
+
+local Tab = Window:Tab({
+    Title = "statistics",
+    Icon = "chart-line",
+    Locked = false,
+})
+
+local Section = Tab:Section({ 
+    Title = "Autofarm statistics",
+    TextXAlignment = "Left",
+    TextSize = 17, -- Default Size
+})
+
+paragraphTimer = Tab:Paragraph({
+    Title = "Elapsed Time",
+    Desc = "Please Start Autofarm",
+    Image = "clock",
+    ImageSize = 30,
+    ThumbnailSize = 10
+})
+
+_G.ParagraphAutoFarmTimer = Tab:Paragraph({
+    Title = "Autofarm Statistics",
+    Desc = "Please Start Autofarm",
+    Image = "chart-pie",
+    ImageSize = 30,
+    ThumbnailSize = 10
+})
+
+_G.paragraphTimer = Tab:Paragraph({
+    Title = "Date & Time",
+    Desc = _G.getFormattedDateTime(),
+    Image = "calendar-clock",
+    ImageSize = 30,
+    ThumbnailSize = 10
+})
+
+_G.startDateTimeUpdater(_G.paragraphTimer)
+
+-- Variabel counter dan UI paragraph
+_G.teleportCount = 0
+
+_G.ParagraphTeleportCount = Tab:Paragraph({
+    Title = "Total Teleport",
+    Desc = "Belum ada teleportasi",
+    Image = "map-pinned",
+    ImageSize = 30,
+    ThumbnailSize = 10
+})

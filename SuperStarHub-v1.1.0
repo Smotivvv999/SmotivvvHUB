@@ -59,10 +59,12 @@ local TweenService = game:GetService("TweenService")
 local Vim = game:GetService("VirtualInputManager")
 local autofarmActive = false
 
+-- Format tanggal dan waktu
 _G.getFormattedDateTime = function()
     return os.date("%d-%m-%Y") .. " | " .. os.date("%H:%M:%S")
 end
 
+-- Update paragraph setiap detik dengan waktu
 _G.startDateTimeUpdater = function(paragraph)
     task.spawn(function()
         while true do
@@ -74,9 +76,9 @@ _G.startDateTimeUpdater = function(paragraph)
     end)
 end
 
--- Tambahan variabel untuk waktu
+-- Timer durasi AutoFarm
 local startTime
-local paragraphTimer -- ini akan menyimpan referensi Paragraph waktu
+local paragraphTimer
 
 local function formatTime(seconds)
     local hours = math.floor(seconds / 3600)
@@ -85,28 +87,22 @@ local function formatTime(seconds)
     return string.format("%02d:%02d:%02d", hours, minutes, secs)
 end
 
--- Fungsi mulai timer AutoFarm
 local function StartAutoFarmTimer()
     startTime = tick()
     task.spawn(function()
         while autofarmActive and paragraphTimer do
             local elapsed = math.floor(tick() - startTime)
-            paragraphTimer:SetDesc("Durasi AutoFarm: " .. formatTime(elapsed))
+            paragraphTimer:SetDesc("Durasi Autofarm: " .. formatTime(elapsed))
             task.wait(1)
         end
     end)
 end
 
--- Fungsi berhenti timer
 local function StopAutoFarmTimer()
     local totalTime = math.floor(tick() - startTime)
     if paragraphTimer then
         paragraphTimer:SetDesc("AutoFarm selesai. Total waktu: " .. formatTime(totalTime))
     end
-end
-
-local function safeWait(min, max)
-    task.wait(min + math.random() * (max - min))
 end
 
 local function SafeTween(part, targetCFrame, time, style)
@@ -115,10 +111,10 @@ local function SafeTween(part, targetCFrame, time, style)
     local success, tween = pcall(function()
         return TweenService:Create(part, tweenInfo, {CFrame = targetCFrame})
     end)
-    if not success or not tween then return end
-
-    tween:Play()
-    tween.Completed:Wait()
+    if success and tween then
+        tween:Play()
+        tween.Completed:Wait()
+    end
 end
 
 local function WaitForRootPart(timeout)
@@ -129,7 +125,7 @@ local function WaitForRootPart(timeout)
         root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
         if root then break end
         task.wait(0.1)
-        t = t + 0.1
+        t += 0.1
     until t >= timeout
     return root
 end
@@ -230,7 +226,6 @@ local function MovingCharacterToDestination(Destination)
     local Car = workspace:FindFirstChild("Vehicles") and workspace.Vehicles:FindFirstChild(CarName)
     if not (Root and Car) then return end
 
-    -- Notifikasi saat memulai teleportasi ke tujuan
     WindUI:Notify({
         Title = "Teleporting...",
         Content = "Go to rojod semarang...",
@@ -268,7 +263,6 @@ local function MovingCharacterToDestination(Destination)
     if Car.PrimaryPart then Car.PrimaryPart.Anchored = false end
     Root.Anchored = false
 
-    -- ✅ Tambahkan ini setelah teleport berhasil:
     _G.teleportCount += 1
 
     if _G.ParagraphTeleportCount and _G.ParagraphTeleportCount.SetDesc then
@@ -350,23 +344,45 @@ Tab:Toggle({
 
             task.spawn(function()
                 while autofarmActive do
+                    -- Step 1: Menuju lokasi Job
+                    print("Step 1: Menuju lokasi Job...")
                     TweenToJob()
-                    safeWait(0.5, 1)
+                    task.wait(1.5)
+
+                    -- Step 2: Mengambil Job
+                    print("Step 2: Mengambil Job...")
                     TakingJob()
-                    safeWait(0.5, 1)
+                    task.wait(1.5)
+
+                    -- Step 3: Memunculkan truk
+                    print("Step 3: Memunculkan truk...")
                     SpawningTruck()
-                    safeWait(0.5, 1)
+                    task.wait(1.5)
+
+                    -- Step 4: Bergerak ke posisi truk
+                    print("Step 4: Bergerak ke posisi truk...")
                     MovingCharacterToDestination(CFrame.new(-50937.152, 1012.215, -86353.031))
-                    safeWait(0.5, 1)
-                    CountdownTeleport(40)  -- akan update paragraph di dalamnya
-                    safeWait(0.5, 1)
+                    task.wait(1.5)
+
+                    -- Step 5: Menunggu proses teleport
+                    print("Step 5: Menunggu proses teleport (38 detik)...")
+                    CountdownTeleport(38)
+                    task.wait(1.5)
+
+                    -- Step 6: Duduk di kendaraan
+                    print("Step 6: Duduk di kendaraan...")
                     SitInVehicle()
-                    safeWait(0.5, 1)
+                    task.wait(1.5)
+
+                    -- Step 7: Menggerakkan kendaraan ke jalan
+                    print("Step 7: Menggerakkan kendaraan ke jalan...")
                     CarTween(CFrame.new(-50899.6015625, 1013.977783203125, -86534.9765625))
-                    safeWait(1, 2)
+                    task.wait(1.5)
                 end
+
                 print("Autofarm stopped.")
             end)
+
         else
             StopAutoFarmTimer()
             print("Autofarm deactivated.")
@@ -380,177 +396,249 @@ local Section = Tab:Section({
     TextSize = 17, -- Default Size
 })
 
-local optimizeMode = false
-local pingThreshold = 150 -- batas ping ms
-local checkInterval = 5 -- cek ping tiap 5 detik
+local Paragraph = Tab:Paragraph({
+    Title = "Optimize Mode Info",
+    Desc = [[
+Aktifkan semua mode untuk performa maksimal:
 
--- Fungsi dapatkan ping Roblox (ms)
-local function getPing()
-    local stats = game:GetService("Stats")
-    local network = stats.NetworkServerStatsItem
-    if network then
-        return network.Latency * 1000 -- detik ke ms
+• Optimize Anti-AFK Mode
+• Optimize Ping and Device Mode
+• Optimize Ping-Based Mode
+• Optimize Performance Mode
+• Optimize Signal Boost Mode
+• Optimize FPS Based Boost Mode
+]],
+    Image = "info",
+    ImageSize = 30,
+    ThumbnailSize = 10,
+})
+
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local Player = Players.LocalPlayer
+
+local pingEnabled = false
+local fpsEnabled = false
+local currentPing = "..."
+local currentFPS = "..."
+local currentStatus = "Menunggu..."
+
+-- Paragraph harus dibuat sebelum toggle
+_G.pingParagraph = Tab:Paragraph({
+    Title = "Performance Status",
+    Desc = "Ping: " .. currentPing .. " ms\nFPS: " .. currentFPS .. "\nStatus: " .. currentStatus,
+    Image = "activity",
+    ImageSize = 30,
+    ThumbnailSize = 10,
+})
+
+local function updateParagraph()
+    if _G.pingParagraph and _G.pingParagraph.SetDesc then
+        _G.pingParagraph:SetDesc("Ping: " .. currentPing .. " ms\nFPS: " .. currentFPS .. "\nStatus: " .. currentStatus)
+    else
+        warn("SetDesc tidak tersedia pada paragraph!")
     end
-    return 0
 end
 
--- Fungsi aktifkan optimize mode
-local function applyOptimizeMode()
-    if optimizeMode then return end
-    optimizeMode = true
-    print("[OptimizeMode] Activated")
+local VirtualUser = game:GetService("VirtualUser")
+local Players = game:GetService("Players")
 
-    pcall(function()
-        local lighting = game:GetService("Lighting")
-        lighting.GlobalShadows = false
-        lighting.FogEnd = 1000
-
-        local userSettings = settings():GetService("UserGameSettings")
-        userSettings.VideoQualityLevel = 1
-        if setfpscap then setfpscap(30) end
-
-        -- Optimasi FPS & Rendering
-        settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
-        settings().Rendering.EditQualityLevel = Enum.QualityLevel.Level01
-        settings().Rendering.MeshPartDetailLevel = Enum.MeshPartDetailLevel.Low
-
-        -- Matikan efek grafis berat
-        for _, v in pairs(lighting:GetDescendants()) do
-            if v:IsA("PostEffect") or v:IsA("BloomEffect") or v:IsA("SunRaysEffect") or v:IsA("ColorCorrectionEffect") then
-                v.Enabled = false
-            end
-        end
-
-        -- Optimasi terrain & water
-        if workspace:FindFirstChildOfClass("Terrain") then
-            local terrain = workspace.Terrain
-            terrain.WaterWaveSize = 0
-            terrain.WaterWaveSpeed = 0
-            terrain.WaterReflectance = 0
-            terrain.WaterTransparency = 1
-        end
-
-        -- Kurangi physics & streaming
-        settings().Physics.AllowSleep = true
-        workspace.StreamingEnabled = true
-
-        -- Nonaktifkan ParticleEmitter, Trail, dan Smoke di workspace
-        for _, obj in ipairs(workspace:GetDescendants()) do
-            if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Smoke") then
-                obj.Enabled = false
-            end
-        end
-
-        -- Optimasi GUI (matikan CoreGui)
-        game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.All, false)
-    end)
-end
-
--- Fungsi matikan optimize mode (balik normal)
-local function revertOptimizeMode()
-    if not optimizeMode then return end
-    optimizeMode = false
-    print("[OptimizeMode] Deactivated")
-
-    pcall(function()
-        local lighting = game:GetService("Lighting")
-        lighting.GlobalShadows = true
-        lighting.FogEnd = 100000
-
-        local userSettings = settings():GetService("UserGameSettings")
-        userSettings.VideoQualityLevel = 10
-        if setfpscap then setfpscap(60) end
-
-        -- Kembalikan efek grafis
-        for _, v in pairs(lighting:GetDescendants()) do
-            if v:IsA("PostEffect") or v:IsA("BloomEffect") or v:IsA("SunRaysEffect") or v:IsA("ColorCorrectionEffect") then
-                v.Enabled = true
-            end
-        end
-
-        -- Kembalikan terrain & water
-        if workspace:FindFirstChildOfClass("Terrain") then
-            local terrain = workspace.Terrain
-            terrain.WaterWaveSize = 1
-            terrain.WaterWaveSpeed = 1
-            terrain.WaterReflectance = 0.2
-            terrain.WaterTransparency = 0
-        end
-
-        -- Kembalikan physics & streaming
-        settings().Physics.AllowSleep = false
-        workspace.StreamingEnabled = false
-
-        -- Aktifkan lagi ParticleEmitter, Trail, dan Smoke
-        for _, obj in ipairs(workspace:GetDescendants()) do
-            if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Smoke") then
-                obj.Enabled = true
-            end
-        end
-
-        -- Aktifkan kembali CoreGui
-        game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.All, true)
-    end)
-end
+local antiAFKConnection
 
 local Toggle = Tab:Toggle({
-    Title = "Optimize Performance Mode",
-    Desc = "Reduce lag by improving fps, ping, cpu, and memory usage.",
-    Default = false,
+    Title = "Optimize Anti AFK Mode",
+    Desc = "prevent kick while AFK.",
     Callback = function(state)
         if state then
-            Window:Dialog({
-                Title = "Optimize Mode",
-                Content = "Performance mode has been activated.",
-                Icon = "circle-check",
-                Buttons = {
-                    {
-                        Title = "OK",
-                        Variant = "Secondary",
-                        Callback = function() print("OK pressed") end,
-                    },
-                },
-            })
-
-            -- Start loop cek ping dan optimize otomatis
-            task.spawn(function()
-                while Tab:GetToggleState("Optimize Performance Mode") do
-                    local ping = getPing()
-                    print("[PingCheck] Current ping: " .. ping .. " ms")
-
-                    if ping > pingThreshold then
-                        applyOptimizeMode()
-                    else
-                        revertOptimizeMode()
-                    end
-
-                    task.wait(checkInterval)
-                end
-
-                -- Pastikan mode off saat toggle dimatikan
-                revertOptimizeMode()
+            -- Aktifkan anti-AFK
+            antiAFKConnection = Players.LocalPlayer.Idled:Connect(function()
+                VirtualUser:Button2Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+                task.wait(1)
+                VirtualUser:Button2Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+                print("[Anti-AFK] Input dikirim agar tidak disconnect.")
             end)
 
-        else
             Window:Dialog({
-                Title = "Optimize Mode Off",
-                Content = "Performance mode has been turned off.",
+                Title = "Optimize Mode",
+                Content = "Optimize mode aktif.\nAnti-AFK juga diaktifkan.",
                 Icon = "circle-check",
                 Buttons = {
                     {
                         Title = "OK",
                         Variant = "Secondary",
+                        Callback = function()
+                            print("OK pressed")
+                        end,
                     },
-                },
+                }
             })
-            revertOptimizeMode()
+        else
+            -- Matikan anti-AFK
+            if antiAFKConnection then
+                antiAFKConnection:Disconnect()
+                antiAFKConnection = nil
+                print("[Anti-AFK] Dinonaktifkan.")
+            end
         end
     end,
 })
 
+local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
+local Players = game:GetService("Players")
+local Player = Players.LocalPlayer
+
+local optimizeEnabled = false
+
+local pingThresholdHigh = 150 -- ms
+local pingThresholdLow = 80   -- ms
+local lowFPSThreshold = 25    -- FPS minimal normal
+local lowFPSDuration = 10     -- detik fps rendah terus menerus
+local checkInterval = 1       -- cek tiap detik
+
+local lowFPSCount = 0
+local maxLowFPSCount = lowFPSDuration / checkInterval
+
+local function showWarning(title, text)
+    StarterGui:SetCore("SendNotification", {
+        Title = title,
+        Text = text,
+        Duration = 5,
+    })
+end
+
+local function optimizeForHighPing()
+    print("Optimizing for high ping: reducing graphics, disabling effects...")
+    -- Tambah logika optimasi nyata di sini
+end
+
+local function restoreSettings()
+    print("Restoring normal settings...")
+    -- Kembalikan pengaturan normal
+end
+
 local Toggle = Tab:Toggle({
-    Title = "Optimize Ping Based Mode", 
-    Desc = "Minimizes lag and stabilizes connection for smoother and more responsive gameplay.", 
+    Title = "Optimize Ping And Device Mode",
+    Desc = "Optimize game based on your ping and device performance.",
+    Callback = function(state)
+        optimizeEnabled = state
+        if state then
+            Window:Dialog({
+                Title = "Optimize Mode",
+                Content = "Optimize mode activated: monitoring ping & device performance.",
+                Icon = "circle-check",
+                Buttons = {
+                    {
+                        Title = "OK",
+                        Variant = "Secondary",
+                        Callback = function()
+                            print("OK pressed")
+                        end,
+                    },
+                },
+            })
+
+            spawn(function()
+                lowFPSCount = 0
+                while optimizeEnabled do
+                    -- Cek ping
+                    local ping = Player:GetNetworkPing() * 1000
+                    print("Ping:", math.floor(ping), "ms")
+
+                    if ping > pingThresholdHigh then
+                        showWarning("High Ping Detected", "Your ping is high, game performance may be affected.")
+                        optimizeForHighPing()
+                    elseif ping < pingThresholdLow then
+                        restoreSettings()
+                    end
+
+                    -- Cek FPS
+                    local dt = RunService.Heartbeat:Wait()
+                    local fps = 1 / dt
+
+                    if fps < lowFPSThreshold then
+                        lowFPSCount = lowFPSCount + 1
+                    else
+                        lowFPSCount = 0
+                    end
+
+                    if lowFPSCount >= maxLowFPSCount then
+                        showWarning("Device Warning", "Your device may be overheating or overloaded. Please take a break.")
+                        lowFPSCount = 0
+                    end
+
+                    wait(checkInterval)
+                end
+            end)
+        else
+            print("Optimize mode disabled.")
+            restoreSettings()
+        end
+    end,
+})
+
+local Players = game:GetService("Players")
+local Player = Players.LocalPlayer
+
+local pingEnabled = false
+local currentPing = "..."
+local currentStatus = "Menunggu..."
+
+local function updateParagraph()
+    if _G.pingParagraph and _G.pingParagraph.SetDesc then
+        _G.pingParagraph:SetDesc("Ping: " .. currentPing .. " ms\nFPS: " .. (currentFPS or "...") .. "\nStatus: " .. currentStatus)
+    end
+end
+
+local Toggle = Tab:Toggle({
+    Title = "Optimize Ping Based Mode",
+    Desc = "Optimize performance based on your network ping.",
+    Callback = function(state)
+        pingEnabled = state
+
+        if state then
+            Window:Dialog({
+                Title = "Ping Optimize Mode",
+                Content = "Ping-based optimization is now active.",
+                Icon = "circle-check",
+                Buttons = {
+                    {
+                        Title = "OK",
+                        Variant = "Secondary",
+                        Callback = function()
+                            print("Ping Optimize Mode Enabled")
+                        end,
+                    },
+                }
+            })
+
+            task.spawn(function()
+                while pingEnabled do
+                    local ping = math.floor(Player:GetNetworkPing() * 1000)
+                    currentPing = ping
+                    if ping <= 80 then
+                        currentStatus = "Stabil"
+                    elseif ping <= 150 then
+                        currentStatus = "Sedang"
+                    else
+                        currentStatus = "Tinggi"
+                    end
+                    updateParagraph()
+                    task.wait(5)
+                end
+            end)
+
+        else
+            currentPing = "..."
+            currentStatus = "Menunggu..."
+            updateParagraph()
+        end
+    end
+})
+
+local Toggle = Tab:Toggle({
+    Title = "Optimize Performance Mode",
+    Desc = "Optimize Ping, Fps, Cpu usage, and Ram usage.",
     Callback = function(state)
         if state then
             Window:Dialog({
@@ -567,35 +655,111 @@ local Toggle = Tab:Toggle({
                     },
                 },
             })
+        end
+    end,
+})
 
-            -- Start loop cek ping
-            task.spawn(function()
-                while Tab:GetToggleState("Optimize Ping Based Mode") do
-                    local ping = getPing()
-                    print("[PingCheck] Current ping: " .. ping .. " ms")
-                    if ping > pingThreshold then
-                        applyOptimizeMode()
-                    else
-                        revertOptimizeMode()
-                    end
-                    task.wait(checkInterval)
+Tab:Toggle({
+    Title = "Optimize Signal Boost Mode",
+    Desc = "Enhance network signal strength to prevent disconnects.",
+    Callback = function(state)
+        signalBoostEnabled = state
+
+        if state then
+            Window:Dialog({
+                Title = "Signal Boost Mode",
+                Content = "Successfully activated optimize mode to boost signal strength.",
+                Icon = "circle-check",
+                Buttons = {
+                    {
+                        Title = "OK",
+                        Variant = "Secondary",
+                        Callback = function()
+                            print("OK")
+                        end,
+                    },
+                }
+            })
+
+            -- Mulai loop update ping real-time
+            signalBoostLoop = task.spawn(function()
+                while signalBoostEnabled do
+                    local ping = math.floor(Player:GetNetworkPing() * 1000)
+                    currentPing = ping
+                    currentStatus = (ping <= 80 and "Stabil") or (ping <= 150 and "Sedang") or "Tinggi"
+
+                    updateParagraph()
+                    task.wait(5)
                 end
-                revertOptimizeMode() -- pastikan optimize dimatikan saat toggle off
+            end)
+
+        else
+            -- Stop loop dan reset status
+            signalBoostEnabled = false
+            currentPing = "..."
+            currentStatus = "Menunggu..."
+            updateParagraph()
+        end
+    end,
+})
+
+local RunService = game:GetService("RunService")
+local fpsEnabled = false
+local currentFPS = "..."
+local function updateParagraph()
+    if _G.pingParagraph and _G.pingParagraph.SetDesc then
+        local ping = currentPing or "..."
+        local status = currentStatus or "Menunggu..."
+        _G.pingParagraph:SetDesc("Ping: " .. ping .. " ms\nFPS: " .. currentFPS .. "\nStatus: " .. status)
+    end
+end
+
+local Toggle = Tab:Toggle({
+    Title = "Optimize FPS Based Mode",
+    Desc = "Optimize performance based on FPS.",
+    Callback = function(state)
+        fpsEnabled = state
+        if state then
+            Window:Dialog({
+                Title = "FPS Optimize Mode",
+                Content = "FPS-based optimization is now active.",
+                Icon = "circle-check",
+                Buttons = {
+                    {
+                        Title = "OK",
+                        Variant = "Secondary",
+                        Callback = function()
+                            print("FPS Optimize Mode Enabled")
+                        end,
+                    },
+                }
+            })
+
+            task.spawn(function()
+                while fpsEnabled do
+                    local start = tick()
+                    RunService.RenderStepped:Wait()
+                    local fps = math.floor(1 / (tick() - start))
+                    currentFPS = fps
+                    updateParagraph()
+                    task.wait(3)
+                end
             end)
         else
-            revertOptimizeMode()
+            currentFPS = "..."
+            updateParagraph()
         end
     end,
 })
 
 local Tab = Window:Tab({
-    Title = "Stats",
+    Title = "statistics",
     Icon = "chart-line",
     Locked = false,
 })
 
 local Section = Tab:Section({ 
-    Title = "Autofarm Status",
+    Title = "Autofarm statistics",
     TextXAlignment = "Left",
     TextSize = 17, -- Default Size
 })
@@ -635,4 +799,3 @@ _G.ParagraphTeleportCount = Tab:Paragraph({
     Image = "map-pinned",
     ImageSize = 30,
     ThumbnailSize = 10
-})

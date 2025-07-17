@@ -105,6 +105,11 @@ local function StopAutoFarmTimer()
     end
 end
 
+local function safeWait(minDelay, maxDelay)
+    local delayTime = math.random() * (maxDelay - minDelay) + minDelay
+    task.wait(delayTime)
+end
+
 local function SafeTween(part, targetCFrame, time, style)
     if not part then return end
     local tweenInfo = TweenInfo.new(time or 1, style or Enum.EasingStyle.Sine)
@@ -114,19 +119,22 @@ local function SafeTween(part, targetCFrame, time, style)
     if success and tween then
         tween:Play()
         tween.Completed:Wait()
+    else
+        warn("Failed to create or play tween.")
     end
 end
 
 local function WaitForRootPart(timeout)
     timeout = timeout or 5
     local root
-    local t = 0
+    local elapsed = 0
     repeat
-        root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
+        local char = Player.Character
+        root = char and char:FindFirstChild("HumanoidRootPart")
         if root then break end
         task.wait(0.1)
-        t += 0.1
-    until t >= timeout
+        elapsed += 0.1
+    until elapsed >= timeout
     return root
 end
 
@@ -152,6 +160,7 @@ local function TweenToJob()
     SafeTween(Root, CFrame.new(-21799.8, 1042.65, -26797.7), 1, Enum.EasingStyle.Exponential)
     safeWait(0.2, 0.4)
 end
+
 
 local function TakingJob()
     repeat
@@ -799,3 +808,4 @@ _G.ParagraphTeleportCount = Tab:Paragraph({
     Image = "map-pinned",
     ImageSize = 30,
     ThumbnailSize = 10
+})

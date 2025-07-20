@@ -1,7 +1,7 @@
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "SuperStarHub || Premium  -  v1.1.0",
+    Title = "SambaaHub || Special  -  v1.1.0",
     Icon = "slack",
     Author = "by smotivvv.",
     Folder = "StrixHub | Premium  -  v1.1.0",
@@ -318,25 +318,25 @@ Tab:Toggle({
 				while autofarmActive do
 					local success, err = pcall(function()
 						TweenToJob()
-						RandomDelay(3.5, 3.7)
+						RandomDelay(3.1, 3.4)
 
 						TakingJob()
 						PlaySuccessSound()
-						RandomDelay(3.6, 3.9)
+						RandomDelay(3.2, 3.6)
 
 						SpawningTruck()
-						RandomDelay(3.4, 3.6)
+						RandomDelay(2.8, 3.2)
 
 						MovingCharacterToDestination(CFrame.new(-50937.152, 1012.215, -86353.031))
-						RandomDelay(3.9, 4.2)
+						RandomDelay(3.5, 3.9)
 
-						CountdownTeleport(33)
+						CountdownTeleport(28.0)
 
 						SitInVehicle()
-						RandomDelay(3.5, 3.7)
+						RandomDelay(3.9, 3.3)
 
 						CarTween(CFrame.new(-50899.6, 1013.97, -86534.97))
-						RandomDelay(3.9, 4.1)
+						RandomDelay(3.4, 3.7)
 					end)
 
 					if not success then

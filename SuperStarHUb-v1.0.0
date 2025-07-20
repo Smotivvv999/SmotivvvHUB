@@ -338,7 +338,7 @@ local Toggle = Tab:Toggle({
 					task.wait(3.9, 4.2)
 
                     if not autofarmActive then break end
-                    CountdownTeleport(29.0)
+                    CountdownTeleport(33.0)
 
                     if not autofarmActive then break end
                     SitInVehicle()

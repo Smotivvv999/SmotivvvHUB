@@ -285,32 +285,31 @@ local Toggle = Tab:Toggle({
                     if not autofarmActive then break end
                     
                     TweenToJob()
-                    task.wait(4.5)
+                    task.wait(3.5, 3.8)
 
                     if not autofarmActive then break end
                     TakingJob()
-                    task.wait(4.5)
+                    task.wait(3.6, 4.0)
 
                     if not autofarmActive then break end
                     SpawningTruck()
-                    task.wait(4.5)
+                    task.wait(3.4, 3.7)
 
                     if not autofarmActive then break end
                     MovingCharacterToDestination(CFrame.new(-50937.152, 1012.215, -86353.031))
-                    task.wait(4.5)
+                    task.wait(3.9, 4.2)
 
                     if not autofarmActive then break end
-                    CountdownTeleport(40)
-                    task.wait(4.5)
+                    CountdownTeleport(35)
 
                     if not autofarmActive then break end
                     SitInVehicle()
-                    task.wait(4.5)
+                    task.wait(3.5, 3.8)
                     
                     if not autofarmActive then break end
                     CarTween(CFrame.new(-50899.6015625, 1013.977783203125, -86534.9765625)) 
 
-                    task.wait(4.5) 
+                    task.wait(3.9, 4.2) 
                 end
                 
                 print("Proses auto farm telah dihentikan.")

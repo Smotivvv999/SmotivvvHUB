@@ -37,10 +37,6 @@ local function formatTime(seconds)
 	return string.format("%02d:%02d:%02d", h, m, s)
 end
 
-local function RandomDelay(min, max)
-	task.wait(math.random() * (max - min) + min)
-end
-
 local function UpdateJobStatus(status)
 	if _G.ParagraphStatusJob and _G.ParagraphStatusJob.SetDesc then
 		_G.ParagraphStatusJob:SetDesc(status)
@@ -297,30 +293,30 @@ Tab:Toggle({
             task.spawn(function()
                 while autofarmActive do
                     TweenToJob()
-                    RandomDelay(3.5, 3.7)
+                    task.wait(3.5)
 
                     if not autofarmActive then break end
                     TakingJob()
-                    RandomDelay(3.6, 3.9)
+                    task.wait(3.5)
 
                     if not autofarmActive then break end
                     SpawningTruck()
-                    RandomDelay(3.4, 3.6)
+                    task.wait(3.5)
 
                     if not autofarmActive then break end
                     MovingCharacterToDestination(CFrame.new(-50937.152, 1012.215, -86353.031))
-                    RandomDelay(3.9, 4.2)
+                    task.wait(3.5)
 
                     if not autofarmActive then break end
-                    CountdownTeleport(33)
+                    CountdownTeleport(35)
 
                     if not autofarmActive then break end
                     SitInVehicle()
-                    RandomDelay(3.5, 3.7)
+                    task.wait(3.5)
 
                     if not autofarmActive then break end
                     CarTween(CFrame.new(-50899.601, 1013.977, -86534.976))
-                    RandomDelay(3.9, 4.1)
+                    task.wait(3.5)
                 end
             end)
         else

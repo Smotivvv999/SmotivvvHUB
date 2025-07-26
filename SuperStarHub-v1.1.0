@@ -4,331 +4,6 @@ local Window = WindUI:CreateWindow({
     Title = "SambaaHub || Special  -  v1.1.0",
     Icon = "slack",
     Author = "by smotivvv.",
-    Folder = "MARKYYY",
-    Size = UDim2.fromOffset(580, 300),
-    Transparent = true,
-    Theme = "Dark",
-})
-
-local Tab = Window:Tab({ Title = "Autofarm", Icon = "plane-takeoff" })
-
-Tab:Section({
-    Title = "Autofarm [Car Driving Indonesia]",
-    TextXAlignment = "Left",
-    TextSize = 17,
-})
-
--- SERVICES
-local Player = game.Players.LocalPlayer
-local CarName = Player.Name .. "sCar"
-local TweenService = game:GetService("TweenService")
-local Vim = game:GetService("VirtualInputManager")
-
--- STATE
-local autofarmActive = false
-local elapsedTask
-
--- HELPERS
-local function formatTime(seconds)
-	local h = math.floor(seconds / 3600)
-	local m = math.floor((seconds % 3600) / 60)
-	local s = seconds % 60
-	return string.format("%02d:%02d:%02d", h, m, s)
-end
-
-local function UpdateJobStatus(status)
-	if _G.ParagraphStatusJob and _G.ParagraphStatusJob.SetDesc then
-		_G.ParagraphStatusJob:SetDesc(status)
-	end
-end
-
--- UI PARAGRAPHS
-_G.paragraphTimer = Tab:Paragraph({
-	Title = "Elapsed Time",
-	Desc = "Please Start Autofarm",
-	Image = "clock",
-	ImageSize = 30
-})
-
-_G.ParagraphAutoFarmTimer = Tab:Paragraph({
-	Title = "Autofarm Statistics",
-	Desc = "Please Start Autofarm",
-	Image = "chart-pie",
-	ImageSize = 30
-})
-
-_G.paragraphTimeNow = Tab:Paragraph({
-	Title = "Date & Time",
-	Desc = os.date("%d-%m-%Y | %H:%M:%S"),
-	Image = "calendar-clock",
-	ImageSize = 30
-})
-
-_G.ParagraphStatusJob = Tab:Paragraph({
-	Title = "Autofarm Status",
-	Desc = "Menunggu perintah...",
-	Image = "briefcase",
-	ImageSize = 30
-})
-
--- ELAPSED TIME
-function StartElapsedTime()
-	if elapsedTask and typeof(elapsedTask) == "thread" then
-		task.cancel(elapsedTask)
-	end
-
-	local startTime = tick()
-
-	elapsedTask = task.spawn(function()
-		while autofarmActive and _G.paragraphTimer do
-			_G.paragraphTimer:SetDesc("Durasi Autofarm: " .. formatTime(math.floor(tick() - startTime)))
-			task.wait(1)
-		end
-	end)
-end
-
--- REALTIME CLOCK
-_G.startDateTimeUpdater = function()
-	task.spawn(function()
-		while autofarmActive and _G.paragraphTimeNow do
-			_G.paragraphTimeNow:SetDesc(os.date("%d-%m-%Y | %H:%M:%S"))
-			task.wait(1)
-		end
-	end)
-end
-
--- AUTOFARM FUNCTIONS
-
-function TweenToJob()
-	UpdateJobStatus("Menuju Pengambilan Job...")
-	game.ReplicatedStorage.NetworkContainer.RemoteEvents.Job:FireServer("Truck")
-	local Root = Player.Character:FindFirstChild("HumanoidRootPart")
-	if not Root then return end
-
-	TweenService:Create(Root, TweenInfo.new(0.5, Enum.EasingStyle.Quad), {
-		CFrame = Root.CFrame + Vector3.new(0, 100, 0)
-	}):Play()
-
-	task.delay(0.5, function()
-		TweenService:Create(Root, TweenInfo.new(1, Enum.EasingStyle.Quad), {
-			CFrame = CFrame.new(-21799.8, 1142.65, -26797.7)
-		}):Play()
-
-		task.delay(1, function()
-			TweenService:Create(Root, TweenInfo.new(1, Enum.EasingStyle.Exponential), {
-				CFrame = CFrame.new(-21799.8, 1042.65, -26797.7)
-			}):Play()
-
-			task.delay(1, function()
-				Root.Anchored = true
-				task.wait(0.3)
-				Root.Anchored = false
-			end)
-		end)
-	end)
-end
-
-function TakingJob()
-	UpdateJobStatus("Mengambil Job...")
-
-	repeat
-		local Root = Player.Character:FindFirstChild("HumanoidRootPart")
-		local Waypoint = workspace.Etc.Waypoint:FindFirstChild("Waypoint")
-		local Label = Waypoint and Waypoint:FindFirstChild("BillboardGui") and Waypoint.BillboardGui:FindFirstChild("TextLabel")
-
-		if Root then Root.Anchored = true end
-
-		if Label and Label.Text ~= "Rojod Semarang" then
-			game.ReplicatedStorage.NetworkContainer.RemoteEvents.Job:FireServer("Truck")
-			local Prompt = workspace.Etc.Job.Truck.Starter:FindFirstChildWhichIsA("ProximityPrompt", true)
-			if Prompt then
-				Prompt.MaxActivationDistance = 100000
-				fireproximityprompt(Prompt)
-			end
-		end
-
-		if Root then Root.Anchored = false end
-		task.wait(0.8)
-	until Label and Label.Text == "Rojod Semarang"
-
-	Player.Character.HumanoidRootPart.Anchored = false
-end
-
-function SpawningTruck()
-	UpdateJobStatus("Spawning Truk...")
-
-	local Root = Player.Character:FindFirstChild("HumanoidRootPart")
-	if not Root then return end
-
-	Root.CFrame = CFrame.new(-21782.941, 1042.03, -26786.959)
-
-	task.wait(2)
-	Vim:SendKeyEvent(true, "F", false, game)
-	task.wait(0.3)
-	Vim:SendKeyEvent(false, "F", false, game)
-	task.wait(5)
-
-	local Car = workspace.Vehicles:FindFirstChild(CarName)
-	local Humanoid = Player.Character:FindFirstChild("Humanoid")
-	local Seat = Car and Car:FindFirstChild("DriveSeat")
-
-	if Humanoid and Seat then
-		pcall(function() Seat:Sit(Humanoid) end)
-		task.wait(0.5)
-		Vim:SendKeyEvent(true, "Space", false, game)
-		task.wait(0.1)
-		Vim:SendKeyEvent(false, "Space", false, game)
-	end
-
-	local Trailer = Car and Car:FindFirstChild("Trailer1")
-	if Trailer then Trailer:Destroy() end
-end
-
-function MovingCharacterToDestination(Destination)
-	UpdateJobStatus("Menuju Tujuan Pengiriman...")
-
-	local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
-	local Car = workspace.Vehicles:FindFirstChild(CarName)
-	if not (Root and Car) then return end
-
-	if not Car.PrimaryPart then
-		local Seat = Car:FindFirstChild("DriveSeat")
-		if Seat then Car.PrimaryPart = Seat else return end
-	end
-
-	local Follow = true
-	task.spawn(function()
-		while Follow do
-			if Car.PrimaryPart then
-				Car:PivotTo(Root.CFrame + Vector3.new(5, 0, 0))
-			end
-			task.wait(0.15)
-		end
-	end)
-
-	local AboveStart = Root.CFrame + Vector3.new(0, 100, 0)
-	local AboveDest = CFrame.new(Destination.Position + Vector3.new(0, 100, 0))
-
-	TweenService:Create(Root, TweenInfo.new(0.4, Enum.EasingStyle.Quad), { CFrame = AboveStart }):Play()
-
-	task.delay(0.4, function()
-		TweenService:Create(Root, TweenInfo.new(1.6, Enum.EasingStyle.Sine), { CFrame = AboveDest }):Play()
-
-		task.delay(1.6, function()
-			TweenService:Create(Root, TweenInfo.new(1.8, Enum.EasingStyle.Exponential), { CFrame = Destination }):Play()
-
-			task.delay(1.8, function()
-				Follow = false
-				Root.Anchored = true
-				if Car.PrimaryPart then Car.PrimaryPart.Anchored = true end
-				task.wait(0.8)
-				if Car.PrimaryPart then Car.PrimaryPart.Anchored = false end
-			end)
-		end)
-	end)
-end
-
-function CountdownTeleport(seconds)
-	UpdateJobStatus("Menunggu Teleport...")
-
-	for i = seconds, 1, -1 do
-		_G.ParagraphAutoFarmTimer:SetDesc("Teleporting dalam " .. i .. " detik")
-		task.wait(1)
-	end
-
-	_G.ParagraphAutoFarmTimer:SetDesc("Teleportasi dimulai!")
-end
-
-function SitInVehicle()
-	UpdateJobStatus("Duduk di Kendaraan...")
-
-	local Car = workspace.Vehicles:FindFirstChild(CarName)
-	local Hum = Player.Character and Player.Character:FindFirstChild("Humanoid")
-	local Seat = Car and Car:FindFirstChild("DriveSeat")
-	if Hum and Seat then pcall(function() Seat:Sit(Hum) end) end
-end
-
-function CarTween(TargetCFrame)
-	UpdateJobStatus("Menggerakkan Mobil...")
-
-	local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
-	if not Root then return end
-
-	local Car = workspace.Vehicles:FindFirstChild(CarName)
-	if not Car then return end
-
-	if not Car.PrimaryPart then
-		local Seat = Car:FindFirstChild("DriveSeat")
-		if Seat then Car.PrimaryPart = Seat else return end
-	end
-
-	local Temp = Instance.new("CFrameValue")
-	Temp.Value = Car:GetPivot()
-	Temp.Parent = workspace
-
-	local Tween = TweenService:Create(Temp, TweenInfo.new(3, Enum.EasingStyle.Linear), { Value = TargetCFrame })
-	Temp:GetPropertyChangedSignal("Value"):Connect(function()
-		Car:PivotTo(Temp.Value)
-	end)
-
-	Tween:Play()
-	Tween.Completed:Wait()
-	Temp:Destroy()
-	task.wait(0.2)
-	Root.Anchored = false
-end
-
--- TOGGLE AUTOFARM
-Tab:Toggle({
-    Title = "Start Autofarm",
-    Type = "Toggle",
-    Default = false,
-    Callback = function(state)
-        autofarmActive = state
-        if autofarmActive then
-            StartElapsedTime()
-            _G.startDateTimeUpdater()
-
-            task.spawn(function()
-                while autofarmActive do
-                    TweenToJob()
-                    task.wait(3.5)
-
-                    if not autofarmActive then break end
-                    TakingJob()
-                    task.wait(3.5)
-
-                    if not autofarmActive then break end
-                    SpawningTruck()
-                    task.wait(3.5)
-
-                    if not autofarmActive then break end
-                    MovingCharacterToDestination(CFrame.new(-50937.152, 1012.215, -86353.031))
-                    task.wait(3.5)
-
-                    if not autofarmActive then break end
-                    CountdownTeleport(32)
-                    task.wait(3.5)
-
-                    if not autofarmActive then break end
-                    SitInVehicle()
-                    task.wait(3.5)
-
-                    if not autofarmActive then break end
-                    CarTween(CFrame.new(-50899.601, 1013.977, -86534.976))
-                    task.wait(9.5)
-                end
-            end)
-        else
-            UpdateJobStatus("Autofarm Dimatikan")
-        end
-    end
-})local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
-
-local Window = WindUI:CreateWindow({
-    Title = "SambaaHub || Special  -  v1.1.0",
-    Icon = "slack",
-    Author = "by smotivvv.",
     Folder = "StrixHub | Premium",
     Size = UDim2.fromOffset(580, 300),
     Transparent = true,
@@ -617,31 +292,31 @@ Tab:Toggle({
             task.spawn(function()
                 while autofarmActive do
                     TweenToJob()
-                    task.wait(3) -- Wait for 3 seconds
+                    task.wait(3.9)
 
                     if not autofarmActive then break end
                     TakingJob()
-                    task.wait(3) -- Wait for 3 seconds
+                    task.wait(3.8)
 
                     if not autofarmActive then break end
                     SpawningTruck()
-                    task.wait(3) -- Wait for 3 seconds
+                    task.wait(3.5)
 
                     if not autofarmActive then break end
                     MovingCharacterToDestination(CFrame.new(-50937.152, 1012.215, -86353.031))
-                    task.wait(3) -- Wait for 3 seconds
+                    task.wait(3.8)
 
                     if not autofarmActive then break end
-                    CountdownTeleport(32) -- This takes 32 seconds
-                    task.wait(3) -- Wait for 3 seconds after the teleport countdown
+                    CountdownTeleport(32)
+                    task.wait(3.8)
 
                     if not autofarmActive then break end
                     SitInVehicle()
-                    task.wait(3) -- Wait for 3 seconds
+                    task.wait(4.5)
 
                     if not autofarmActive then break end
                     CarTween(CFrame.new(-50899.601, 1013.977, -86534.976))
-                    task.wait(10)
+                    task.wait(9.5)
                 end
             end)
         else

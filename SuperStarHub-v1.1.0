@@ -292,23 +292,23 @@ Tab:Toggle({
             task.spawn(function()
                 while autofarmActive do
                     TweenToJob()
-                    task.wait(3.9)
+                    task.wait(4.5)
 
                     if not autofarmActive then break end
                     TakingJob()
-                    task.wait(3.8)
+                    task.wait(4.5)
 
                     if not autofarmActive then break end
                     SpawningTruck()
-                    task.wait(3.5)
+                    task.wait(4.5)
 
                     if not autofarmActive then break end
                     MovingCharacterToDestination(CFrame.new(-50937.152, 1012.215, -86353.031))
-                    task.wait(3.8)
+                    task.wait(4.5)
 
                     if not autofarmActive then break end
                     CountdownTeleport(32)
-                    task.wait(3.8)
+                    task.wait(4.5)
 
                     if not autofarmActive then break end
                     SitInVehicle()

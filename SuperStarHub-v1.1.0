@@ -646,6 +646,6 @@ Tab:Toggle({
             end)
         else
             UpdateJobStatus("Autofarm Dimatikan")
-        Yend
+        end
     end
 })

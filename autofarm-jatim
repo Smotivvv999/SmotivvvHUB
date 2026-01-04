@@ -32,9 +32,9 @@ local Window = Rayfield:CreateWindow({
    }
 })
 
-local StatsTab = Window:CreateTab("STATS", "activity")
-local FarmTab = Window:CreateTab("AUTOFARM", "truck")
-local SettingsTab = Window:CreateTab("SETTINGS", "settings")
+local StatsTab = Window:CreateTab("Stats", "activity")
+local FarmTab = Window:CreateTab("Autofarm", "truck")
+local SettingsTab = Window:CreateTab("Configuration", "settings")
 
 -- Services
 local Players = game:GetService("Players")

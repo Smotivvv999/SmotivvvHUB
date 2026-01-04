@@ -202,7 +202,7 @@ local function TweenToJob()
 end
 
 local function TakingJob()
-    local timeout = 150  -- Increased timeout for stability
+    local timeout = 1500  -- Increased timeout for stability
     local startTime = tick()
     repeat
         local Root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
@@ -215,8 +215,12 @@ local function TakingJob()
             FireJobIfNeeded()
             local Prompt = workspace.Etc.Job.Truck.Starter:FindFirstChildWhichIsA("ProximityPrompt", true)
             if Prompt then
-                Prompt.MaxActivationDistance = 5
-                fireproximityprompt(Prompt)
+                Prompt.MaxActivationDistance = 8
+                -- Spam the proximity prompt to increase chances of taking the job
+                for i = 1, 10 do  -- Fire the prompt 10 times with short delays
+                    fireproximityprompt(Prompt)
+                    task.wait(0.1)  -- Short delay between spams
+                end
             end
         end
 

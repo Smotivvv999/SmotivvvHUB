@@ -113,9 +113,9 @@ local totalEarning = 0
 local moneyReceived = 0
 
 -- Settings (with UI Text Boxes) - Adjusted defaults for slower, more stable operation
-local teleportDelay = 30  -- Adjusted to requested default
-local cycleDelay = 0.3    -- Adjusted to requested default
-local tweenSpeedMultiplier = 0.5  -- Increased to make tweens slower
+local teleportDelay = 15  -- Adjusted to requested default
+local cycleDelay = 0.2    -- Adjusted to requested default
+local tweenSpeedMultiplier = 0.9  -- Increased to make tweens slower
 
 local TeleportInput = SettingsTab:CreateInput({
     Name = "Teleport Delay (Seconds)",

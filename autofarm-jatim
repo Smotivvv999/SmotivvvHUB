@@ -314,7 +314,7 @@ local function CarTween(TargetCFrame)
     local Root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
     if not Root then return end
     Root.Anchored = false
-    task.wait(0.3 / cycleDelay)  -- Increased wait
+    task.wait(0.5 / cycleDelay)  -- Increased wait
 
     local Car = workspace.Vehicles:FindFirstChild(CarName)
     if not Car then return end
@@ -335,9 +335,9 @@ local function CarTween(TargetCFrame)
     Temp:Destroy()
 
     FireJobIfNeeded()
-    task.wait(0.3 / cycleDelay)  -- Increased wait
+    task.wait(0.5 / cycleDelay)  -- Increased wait
     Root.Anchored = true
-    task.wait(0.3 / cycleDelay)  -- Increased wait
+    task.wait(0.5 / cycleDelay)  -- Increased wait
     Root.Anchored = false
 end
 -- Function to format elapsed time as HH:MM:SS

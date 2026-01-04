@@ -313,8 +313,8 @@ end
 local function CarTween(TargetCFrame)
     local Root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
     if not Root then return end
-    Root.Anchored = true  -- Anchor the root before tweening to prevent player movement and ensure smooth motion
-    task.wait(0.1)  -- Short wait to stabilize
+    Root.Anchored = false
+    task.wait(0.3 / cycleDelay)  -- Increased wait
 
     local Car = workspace.Vehicles:FindFirstChild(CarName)
     if not Car then return end
@@ -329,17 +329,17 @@ local function CarTween(TargetCFrame)
         Car:PivotTo(Temp.Value)
     end)
 
-    -- Increased tween time and adjusted easing for smoother transition
-    local Tween = TweenService:Create(Temp, TweenInfo.new(6 / tweenSpeedMultiplier, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {Value = TargetCFrame})
+    local Tween = TweenService:Create(Temp, TweenInfo.new(4 / tweenSpeedMultiplier, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Value = TargetCFrame})  -- Increased time
     Tween:Play()
     Tween.Completed:Wait()
     Temp:Destroy()
 
     FireJobIfNeeded()
-    task.wait(0.1)  -- Short wait
-    Root.Anchored = false  -- Unanchor after tween
+    task.wait(0.3 / cycleDelay)  -- Increased wait
+    Root.Anchored = true
+    task.wait(0.3 / cycleDelay)  -- Increased wait
+    Root.Anchored = false
 end
-
 -- Function to format elapsed time as HH:MM:SS
 local function formatTime(seconds)
     local hours = math.floor(seconds / 3600)

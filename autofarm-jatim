@@ -202,7 +202,7 @@ local function TweenToJob()
 end
 
 local function TakingJob()
-    local timeout = 30  -- Increased timeout for stability
+    local timeout = 150  -- Increased timeout for stability
     local startTime = tick()
     repeat
         local Root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")

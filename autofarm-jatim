@@ -2,10 +2,10 @@
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-   Name = "Rayfield Example Window",
+   Name = "s3raaa new eraa hub || cdid farm #1",
    Icon = 0,
-   LoadingTitle = "Rayfield Interface Suite",
-   LoadingSubtitle = "by Sirius",
+   LoadingTitle = "Loading...",
+   LoadingSubtitle = "by s3reaa_beatiful",
    ShowText = "Rayfield",
    Theme = "Default",
    ToggleUIKeybind = "K",

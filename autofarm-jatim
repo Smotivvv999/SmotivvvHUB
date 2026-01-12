@@ -1,11 +1,12 @@
+-- Load Rayfield
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-   Name = "m4r_marskieee",
+   Name = "Rayfield Example Window",
    Icon = 0,
-   LoadingTitle = "loading autofarm.....",
-   LoadingSubtitle = "by marskieee_ganzzz",
-   ShowText = "Autofarm",
+   LoadingTitle = "Rayfield Interface Suite",
+   LoadingSubtitle = "by Sirius",
+   ShowText = "Rayfield",
    Theme = "Default",
    ToggleUIKeybind = "K",
    DisableRayfieldPrompts = false,
@@ -13,438 +14,533 @@ local Window = Rayfield:CreateWindow({
    ConfigurationSaving = {
       Enabled = true,
       FolderName = nil,
-      FileName = "AutofarmHub"
+      FileName = "Big Hub"
    },
-   Discord = {
-      Enabled = false,
-      Invite = "noinvitelink",
-      RememberJoins = true
-   },
-   KeySystem = true,
-   KeySettings = {
-      Title = "Untitled",
-      Subtitle = "Key System",
-      Note = "No method of obtaining the key is provided",
-      FileName = "Key",
-      SaveKey = true,
-      GrabKeyFromSite = false,
-      Key = {"123"}
-   }
 })
 
-local StatsTab = Window:CreateTab("Stats", "activity")
-local FarmTab = Window:CreateTab("Autofarm", "truck")
-local SettingsTab = Window:CreateTab("Configuration", "settings")
+local Tab = Window:CreateTab("Stats", "trending-up")
+local Section = Tab:CreateSection("Farm Stats")
 
--- Services
-local Players = game:GetService("Players")
-local player = Players.LocalPlayer
+-- Simpan referensi ke paragraph untuk update realtime
+local AutofarmStatsPara = Tab:CreateParagraph({Title = "Autofarm Stats", Content = "Idle"})
+local WaitingTeleportPara = Tab:CreateParagraph({Title = "Waiting Teleport", Content = "Not waiting"})
+local ElapsedTimePara = Tab:CreateParagraph({Title = "Elapsed Time", Content = "00:00:00"})
+
+local Section = Tab:CreateSection("Earn Stats")  
+
+-- Fungsi untuk format Rupiah
+local function formatRupiah(amount)
+    if not amount or amount == 0 then return "Rp 0" end
+    local formatted = string.format("%.0f", amount)
+    formatted = formatted:reverse():gsub("(%d%d%d)", "%1."):reverse()
+    return "Rp " .. formatted:gsub("^,", "")
+end
+
+-- Variabel untuk tracking stats
+local totalMoney = 0
+local moneyReceived = 0
+local moneyIncome = 0
+local startTime = tick()
+local lastMoney = 0
+
+-- Paragraf untuk stats
+local totalMoneyPara = Tab:CreateParagraph({Title="Total Money", Content="Rp 0"})
+local moneyReceivedPara = Tab:CreateParagraph({Title="Total Earning", Content="Rp 0"})  -- Diubah dari "Money Received" ke "Total Earning"
+local moneyIncomePara = Tab:CreateParagraph({Title="Money Income", Content="Rp 0 / Hour"})
+
+-- Fungsi update stats
+local function updateStats()
+    local currentMoneyText = game:GetService("Players").LocalPlayer.PlayerGui.Main.Container.Hub.CashFrame.Frame.TextLabel.Text
+    
+    -- Parsing lebih robust: hapus semua non-digit
+    local cleanedText = currentMoneyText:gsub("[^%d]", "")  -- Hapus semua karakter non-digit
+    local currentMoney = tonumber(cleanedText) or 0
+    
+    totalMoney = currentMoney
+    totalMoneyPara:Set({Title="Total Money", Content=formatRupiah(totalMoney)})
+    
+    -- Hitung money received (selisih positif)
+    if currentMoney > lastMoney then
+        moneyReceived = moneyReceived + (currentMoney - lastMoney)
+    end
+    lastMoney = currentMoney
+    moneyReceivedPara:Set({Title="Total Earning", Content=formatRupiah(moneyReceived)})  -- Diubah dari "Money Received" ke "Total Earning"
+    
+    -- Hitung money income (per hour)
+    local elapsedTime = tick() - startTime
+    if elapsedTime > 0 then
+        moneyIncome = (moneyReceived / elapsedTime) * 3600  -- Konversi ke per jam
+    end
+    moneyIncomePara:Set({Title="Money Income", Content=formatRupiah(moneyIncome) .. " / Hour"})
+end
+
+-- Update stats awal
+updateStats()
+
+-- Connect ke perubahan money
+game:GetService("Players").LocalPlayer.PlayerGui.Main.Container.Hub.CashFrame.Frame.TextLabel.Changed:Connect(function()
+    updateStats()
+end)
+
+-- Loop update stats setiap detik untuk income yang akurat
+task.spawn(function()
+    while true do
+        task.wait(1)
+        updateStats()
+    end
+end)
+
+local Tab = Window:CreateTab("Configuration", "settings")
+local Section = Tab:CreateSection("Set tele & recall job")
+
+local Paragraph = Tab:CreateParagraph({
+    Title = "Set Config Working",
+    Content = [[
+Teleport: 18 detik
+Recall Job: 0.5
+]]
+})
+
+-- Variabel untuk menyimpan nilai dari input
+local recallJobTime = 0.5
+local teleportTime = 18
+
+local Input = Tab:CreateInput({
+   Name = "Teleport",
+   CurrentValue = "18",
+   PlaceholderText = "Input teleport time in seconds",
+   RemoveTextAfterFocusLost = false,
+   Flag = "TeleportInput",
+   Callback = function(Text)
+       teleportTime = tonumber(Text) or 20
+       print("Teleport time set to: " .. teleportTime)
+   end,
+})
+
+local Input = Tab:CreateInput({
+   Name = "Recall job",
+   CurrentValue = "0.5",
+   PlaceholderText = "Input recall job time in seconds",
+   RemoveTextAfterFocusLost = false,
+   Flag = "RecallJobInput",
+   Callback = function(Text)
+       recallJobTime = tonumber(Text) or 0.3
+       print("Recall job time set to: " .. recallJobTime)
+   end,
+})
+
+local Tab = Window:CreateTab("Autofarm", "plane-takeoff")
+local Section = Tab:CreateSection("Executor Stats")
+
+-- Fungsi untuk mendeteksi executor dengan lebih banyak checks
+local function getExecutor()
+    local executor = "Unknown"
+    local version = ""
+    
+    -- Coba identifyexecutor() terlebih dahulu
+    if identifyexecutor then
+        pcall(function()
+            executor = identifyexecutor()
+        end)
+    end
+    
+    -- Jika masih unknown, cek variabel global
+    if executor == "Unknown" then
+        if syn then
+            executor = "Synapse X"
+            if syn.version then version = " v" .. syn.version end
+        elseif krnl then
+            executor = "Krnl"
+        elseif fluxus then
+            executor = "Fluxus"
+        elseif scriptware then
+            executor = "Delta"
+        elseif xeno then
+            executor = "Xeno"
+            if xeno.version then version = " v" .. xeno.version end
+        elseif getgenv then
+            -- Jika getgenv ada tapi tidak spesifik, coba deteksi lain
+            executor = "Unknown (getgenv detected)"
+        elseif hookfunction then
+            executor = "Unknown (hookfunction detected)"
+        end
+    end
+    
+    -- Gabungkan executor dan versi
+    if version ~= "" then
+        return executor .. version
+    else
+        return executor
+    end
+end
+
+local Paragraph = Tab:CreateParagraph({Title = "Executor", Content = getExecutor()})
+
+local Section = Tab:CreateSection("Autofarm [CAR DRIVING INDONESIA]")
+
+local Input = Tab:CreateInput({
+   Name = "Webhoks url",
+   CurrentValue = "",
+   PlaceholderText = "Input Placeholder",
+   RemoveTextAfterFocusLost = false,
+   Flag = "Input1",
+   Callback = function(Text)
+   -- The function that takes place when the input is changed
+   -- The variable (Text) is a string for the value in the text box
+   end,
+})
+
+local Section = Tab:CreateSection("Autofarm [CAR DRIVING INDONESIA]")
+
+local Player = game.Players.LocalPlayer
+local CarName = Player.Name .. "sCar"
 local TweenService = game:GetService("TweenService")
 local Vim = game:GetService("VirtualInputManager")
 
--- GUI Path for Money Display
-local gui = player:WaitForChild("PlayerGui")
-local main = gui:WaitForChild("Main")
-local container = main:WaitForChild("Container")
-local hub = container:WaitForChild("Hub")
-local cashFrame = hub:WaitForChild("CashFrame")
-local frame = cashFrame:WaitForChild("Frame")
-local cashLabel = frame:WaitForChild("TextLabel")
+-- Variabel untuk autofarm
+local autofarmActive = false
+local autofarmStartTime = 0
 
--- Function to parse money from string (handles commas)
-local function parseMoney(text)
-    if not text then return 0 end
-    local cleaned = string.gsub(text, "[^%d]", "")  -- Remove non-digits
-    return tonumber(cleaned) or 0
+-- Fungsi untuk format waktu elapsed (HH:MM:SS)
+local function formatElapsedTime(seconds)
+    local hours = math.floor(seconds / 3600)
+    local minutes = math.floor((seconds % 3600) / 60)
+    local secs = math.floor(seconds % 60)
+    return string.format("%02d:%02d:%02d", hours, minutes, secs)
 end
 
--- Function to format numbers as Rupiah (e.g., Rp 1.000.000)
-local function formatRupiah(amount)
-    local str = tostring(math.floor(amount))
-    local formatted = str:reverse():gsub("(%d%d%d)", "%1."):reverse():gsub("^%.", "")
-    return "Rp " .. formatted
-end
-
--- Paragraphs for Stats
-local MoneyParagraph = StatsTab:CreateParagraph({
-    Title = "Total Money",
-    Content = "Loading..."
-})
-
-local MoneyReceivedParagraph = StatsTab:CreateParagraph({
-    Title = "Money Received (Last Cycle)",
-    Content = "Rp 0"
-})
-
-local TotalEarningParagraph = StatsTab:CreateParagraph({
-    Title = "Total Earning",
-    Content = "Rp 0"
-})
-
-local ElapsedTimeParagraph = StatsTab:CreateParagraph({
-    Title = "Elapsed Time",
-    Content = "00:00:00"
-})
-
--- Update Money Function
-local function updateMoney()
-    if cashLabel then
-        MoneyParagraph:Set({
-            Title = "Total Money",
-            Content = cashLabel.Text
-        })
+-- Fungsi update elapsed time
+local function updateElapsedTime()
+    if autofarmActive then
+        local elapsed = tick() - autofarmStartTime
+        ElapsedTimePara:Set({Title = "Elapsed Time", Content = formatElapsedTime(elapsed)})
+    else
+        ElapsedTimePara:Set({Title = "Elapsed Time", Content = "00:00:00"})
     end
 end
 
--- Initial Update and Connect to Changes
-updateMoney()
-cashLabel:GetPropertyChangedSignal("Text"):Connect(updateMoney)
+-- Fungsi tween teleport ke area kerja
+function TweenToJob()
+    if not autofarmActive then return end
+    AutofarmStatsPara:Set({Title = "Autofarm Stats", Content = "Menuju lokasi job..."})
+    pcall(function()
+        game.ReplicatedStorage.NetworkContainer.RemoteEvents.Job:FireServer("Truck")
+        
+        local Root = Player.Character:FindFirstChild("HumanoidRootPart")
+        if not Root then return end
 
--- Player and Variables
-local CarName = player.Name .. "sCar"
-local lastJobFireTime = 0
-local JOB_FIRE_COOLDOWN = 5  -- Increased cooldown for stability
+        TweenService:Create(Root, TweenInfo.new(1.0, Enum.EasingStyle.Quad), {
+            CFrame = Root.CFrame + Vector3.new(0, 100, 0)
+        }):Play()
 
--- Stats Tracking Variables
-local startTime = 0
-local initialMoney = 0
-local lastMoney = 0
-local totalEarning = 0
-local moneyReceived = 0
+        task.wait(1.0)
+        TweenService:Create(Root, TweenInfo.new(2.0, Enum.EasingStyle.Quad), {
+            CFrame = CFrame.new(34938.02, 134.51, -54577.36)
+        }):Play()
 
--- Settings (with UI Text Boxes) - Adjusted defaults for slower, more stable operation
-local teleportDelay = 15  -- Adjusted to requested default
-local cycleDelay = 0.2    -- Adjusted to requested default
-local tweenSpeedMultiplier = 0.9  -- Increased to make tweens slower
+        task.wait(2.0)
+        TweenService:Create(Root, TweenInfo.new(2.0, Enum.EasingStyle.Exponential), {
+            CFrame = CFrame.new(34938.02, 134.51, -54577.36)
+        }):Play()
 
-local TeleportInput = SettingsTab:CreateInput({
-    Name = "Teleport Delay (Seconds)",
-    PlaceholderText = "Enter seconds (e.g., 40)",
-    Numeric = true,
-    CurrentValue = tostring(teleportDelay),
-    Flag = "TeleportDelay",
-    Callback = function(Value)
-        local num = tonumber(Value)
-        if num and num >= 10 then  -- Minimum increased
-            teleportDelay = num
-        else
-            print("Invalid input for Teleport Delay. Must be a number >= 10.")
-        end
-    end,
-})
-
-local CycleInput = SettingsTab:CreateInput({
-    Name = "Cycle Delay (Seconds)",
-    PlaceholderText = "Enter seconds (e.g., 0.3)",
-    Numeric = true,
-    CurrentValue = tostring(cycleDelay),
-    Flag = "CycleDelay",
-    Callback = function(Value)
-        local num = tonumber(Value)
-        if num and num >= 0.3 then  -- Minimum increased
-            cycleDelay = num
-        else
-            print("Invalid input for Cycle Delay. Must be a number >= 0.3.")
-        end
-    end,
-})
-
-local SpeedInput = SettingsTab:CreateInput({
-    Name = "Tween Speed Multiplier",
-    PlaceholderText = "Enter multiplier (e.g., 1.2)",
-    Numeric = true,
-    CurrentValue = tostring(tweenSpeedMultiplier),
-    Flag = "SpeedMultiplier",
-    Callback = function(Value)
-        local num = tonumber(Value)
-        if num and num >= 1.0 then  -- Minimum increased to ensure slower tweens
-            tweenSpeedMultiplier = num
-        else
-            print("Invalid input for Tween Speed Multiplier. Must be a number >= 1.0.")
-        end
-    end,
-})
-
--- Functions (optimized for stability)
-local function FireJobIfNeeded()
-    if tick() - lastJobFireTime > JOB_FIRE_COOLDOWN then
-        pcall(function()
-            game.ReplicatedStorage.NetworkContainer.RemoteEvents.Job:FireServer("Truck")
-        end)
-        lastJobFireTime = tick()
-    end
+        task.wait(2.0)
+        Root.Anchored = true
+        task.wait(0.8)
+        Root.Anchored = false
+    end)
 end
 
-local function CountdownTeleport(seconds)
-    for remaining = seconds, 1, -1 do
-        print("Teleporting in " .. remaining .. " seconds...")
-        task.wait(1)
-    end
-end
-
-local function TweenToJob()
-    FireJobIfNeeded()
-    local Root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-    if not Root then return end
-
-    local tweenUp = TweenService:Create(Root, TweenInfo.new(0.6 / tweenSpeedMultiplier, Enum.EasingStyle.Quad), {CFrame = Root.CFrame + Vector3.new(0, 100, 0)})
-    tweenUp:Play()
-    tweenUp.Completed:Wait()
-
-    local tweenTo = TweenService:Create(Root, TweenInfo.new(1 / tweenSpeedMultiplier, Enum.EasingStyle.Quad), {CFrame = CFrame.new(34938.02, 134.51, -54577.36)})
-    tweenTo:Play()
-    tweenTo.Completed:Wait()
-
-    Root.Anchored = true
-    task.wait(0.2)
-    Root.Anchored = false
-    task.wait(cycleDelay)
-end
-
-local function TakingJob()
-    local timeout = 1500  -- Increased timeout for stability
-    local startTime = tick()
+-- Fungsi mengambil job "Truck" dengan timeout anti-stuck
+function TakingJob()
+    if not autofarmActive then return end
+    AutofarmStatsPara:Set({Title = "Autofarm Stats", Content = "Sedang eksekusi pekerjaan..."})
+    local attempts = 0
+    local maxAttempts = 50  -- Timeout after ~15 seconds (50 * 0.3)
     repeat
-        local Root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        if not autofarmActive then return end
+        attempts = attempts + 1
+        if attempts > maxAttempts then
+            warn("TakingJob stuck, skipping...")
+            return
+        end
+        pcall(function()
+            local Root = Player.Character:FindFirstChild("HumanoidRootPart")
+            local Waypoint = workspace.Etc.Waypoint:FindFirstChild("Waypoint")
+            local Label = Waypoint and Waypoint:FindFirstChild("BillboardGui") and Waypoint.BillboardGui:FindFirstChild("TextLabel")
+
+            if Root then Root.Anchored = true end
+
+            if Label and Label.Text ~= "PT CDID Cargo Malang" then
+                game.ReplicatedStorage.NetworkContainer.RemoteEvents.Job:FireServer("Truck")
+                local Prompt = workspace.Etc.Job.Truck.Starter:FindFirstChildWhichIsA("ProximityPrompt", true)
+                if Prompt then
+                    Prompt.MaxActivationDistance = 100000
+                    fireproximityprompt(Prompt)
+                end
+            end
+
+            if Root then Root.Anchored = false end
+        end)
+        task.wait(0.3)
+    until (function()
         local Waypoint = workspace.Etc.Waypoint:FindFirstChild("Waypoint")
         local Label = Waypoint and Waypoint:FindFirstChild("BillboardGui") and Waypoint.BillboardGui:FindFirstChild("TextLabel")
+        return Label and Label.Text == "PT CDID Cargo Malang"
+    end)()
 
-        if Root then Root.Anchored = true end
+    pcall(function()
+        Player.Character.HumanoidRootPart.Anchored = false
+    end)
+end
 
-        if Label and Label.Text ~= "PT CDID Cargo Malang" then
-            FireJobIfNeeded()
-            local Prompt = workspace.Etc.Job.Truck.Starter:FindFirstChildWhichIsA("ProximityPrompt", true)
-            if Prompt then
-                Prompt.MaxActivationDistance = 8
-                -- Spam the proximity prompt to increase chances of taking the job
-                for i = 1, 10 do  -- Fire the prompt 10 times with short delays
-                    fireproximityprompt(Prompt)
-                    task.wait(0.1)  -- Short delay between spams
+-- Fungsi spawn mobil + langsung duduk + destroy trailer dengan checks
+function SpawningTruck()
+    if not autofarmActive then return end
+    AutofarmStatsPara:Set({Title = "Autofarm Stats", Content = "Menyiapkan truk..."})
+    pcall(function()
+        local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
+        if not Root then return end
+
+        Root.CFrame = CFrame.new(35163.45, 134.51, -54686.68)
+
+        task.wait(3.0)
+        Vim:SendKeyEvent(true, "F", false, game)
+        task.wait(0.3)
+        Vim:SendKeyEvent(false, "F", false, game)
+        task.wait(3.0)
+
+        local Car = workspace.Vehicles:FindFirstChild(CarName)
+        local Humanoid = Player.Character and Player.Character:FindFirstChild("Humanoid")
+        local Seat = Car and Car:FindFirstChild("DriveSeat")
+
+        if Humanoid and Seat then
+            pcall(function() Seat:Sit(Humanoid) end)
+            task.wait(0.8)
+            Vim:SendKeyEvent(true, "Space", false, game)
+            task.wait(0.1)
+            Vim:SendKeyEvent(false, "Space", false, game)
+        end
+
+        local Trailer = Car and Car:FindFirstChild("Trailer1")
+        if Trailer then
+            Trailer:Destroy()
+            print("Trailer destroyed to prevent interference.")
+        end
+    end)
+end
+
+-- Fungsi bergerak ke destinasi dengan anti-stuck
+function MovingCharacterToDestination(Destination)
+    if not autofarmActive then return end
+    AutofarmStatsPara:Set({Title = "Autofarm Stats", Content = "Menuju titik tujuan..."})
+    pcall(function()
+        local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
+        local Car = workspace.Vehicles:FindFirstChild(CarName)
+
+        if not (Root and Car) then return end
+
+        if not Car.PrimaryPart then
+            for _, Part in ipairs(Car:GetDescendants()) do
+                if Part:IsA("BasePart") then
+                    Car.PrimaryPart = Part
+                    break
                 end
             end
         end
 
-        if Root then Root.Anchored = false end
-        task.wait(cycleDelay)
-    until (Label and Label.Text == "PT CDID Cargo Malang") or (tick() - startTime > timeout)
+        Root.Anchored = true
+        if Car.PrimaryPart then Car.PrimaryPart.Anchored = true end
 
-    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-        player.Character.HumanoidRootPart.Anchored = false
-    end
-end
-
-local function SpawningTruck()
-    local Root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-    if not Root then return end
-    Root.CFrame = CFrame.new(35163.45, 134.51, -54686.68)
-    task.wait(2.0 / cycleDelay)  -- Adjusted wait
-
-    Vim:SendKeyEvent(true, "F", false, game)
-    task.wait(0.5 / cycleDelay)  -- Increased wait
-    Vim:SendKeyEvent(false, "F", false, game)
-    task.wait(2.5 / cycleDelay)  -- Increased wait
-
-    local Car = workspace.Vehicles:FindFirstChild(CarName)
-    local Hum = player.Character and player.Character:FindFirstChild("Humanoid")
-    local Seat = Car and Car:FindFirstChild("DriveSeat")
-
-    if Hum and Seat then
-        pcall(function() Seat:Sit(Hum) end)
-        task.wait(0.5 / cycleDelay)  -- Increased wait
-        Vim:SendKeyEvent(true, "Space", false, game)
-        task.wait(0.1 / cycleDelay)
-        Vim:SendKeyEvent(false, "Space", false, game)
-    end
-
-    local Trailer = Car and Car:FindFirstChild("Trailer1")
-    if Trailer then Trailer:Destroy() end
-end
-
-local function MovingCharacterToDestination(Destination)
-    local Root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-    local Car = workspace.Vehicles:FindFirstChild(CarName)
-    if not (Root and Car) then return end
-
-    if not Car.PrimaryPart then
-        for _, Part in ipairs(Car:GetDescendants()) do
-            if Part:IsA("BasePart") then
-                Car.PrimaryPart = Part
-                break
-            end
-        end
-    end
-
-    Root.Anchored = true
-    if Car.PrimaryPart then Car.PrimaryPart.Anchored = false end
-
-    local follow = true
-    task.spawn(function()
-        while follow and Car.PrimaryPart and Root do
-            local direction = (Root.Position - Car.PrimaryPart.Position)
-            if direction.Magnitude > 2 then
-                local newPos = Root.Position - direction.Unit * 8
-                Car:PivotTo(CFrame.new(newPos, Root.Position))
-            end
-            task.wait(0.15)  -- Slightly increased wait for stability
-        end
-    end)
-
-    local tween1 = TweenService:Create(Root, TweenInfo.new(2.5 / tweenSpeedMultiplier, Enum.EasingStyle.Quad), {CFrame = Root.CFrame + Vector3.new(0, 100, 0)})  -- Increased time
-    tween1:Play()
-    tween1.Completed:Wait()
-
-    local tween2 = TweenService:Create(Root, TweenInfo.new(4.5 / tweenSpeedMultiplier, Enum.EasingStyle.Sine), {CFrame = CFrame.new(Destination.Position + Vector3.new(0, 100, 0))})  -- Increased time
-    tween2:Play()
-    tween2.Completed:Wait()
-
-    local tween3 = TweenService:Create(Root, TweenInfo.new(2.0 / tweenSpeedMultiplier, Enum.EasingStyle.Exponential), {CFrame = Destination})  -- Increased time
-    tween3:Play()
-    tween3.Completed:Wait()
-
-    follow = false
-    task.wait(0.3)  -- Increased wait
-    Root.Anchored = false
-    if Car.PrimaryPart then Car.PrimaryPart.Anchored = false end
-end
-
-local function SitInVehicle()
-    local Car = workspace.Vehicles:FindFirstChild(CarName)
-    local Hum = player.Character and player.Character:FindFirstChild("Humanoid")
-    local Seat = Car and Car:FindFirstChild("DriveSeat")
-    if Hum and Seat then pcall(function() Seat:Sit(Hum) end) end
-end
-
-local function CarTween(TargetCFrame)
-    local Root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-    if not Root then return end
-    Root.Anchored = false
-    task.wait(0.5 / cycleDelay)  -- Increased wait
-
-    local Car = workspace.Vehicles:FindFirstChild(CarName)
-    if not Car then return end
-    if not Car.PrimaryPart then
-        local Seat = Car:FindFirstChild("DriveSeat")
-        if Seat then Car.PrimaryPart = Seat else return end
-    end
-
-    local Temp = Instance.new("CFrameValue", workspace)
-    Temp.Value = Car:GetPivot()
-    Temp:GetPropertyChangedSignal("Value"):Connect(function()
-        Car:PivotTo(Temp.Value)
-    end)
-
-    local Tween = TweenService:Create(Temp, TweenInfo.new(4 / tweenSpeedMultiplier, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Value = TargetCFrame})  -- Increased time
-    Tween:Play()
-    Tween.Completed:Wait()
-    Temp:Destroy()
-
-    FireJobIfNeeded()
-    task.wait(0.5 / cycleDelay)  -- Increased wait
-    Root.Anchored = true
-    task.wait(0.5 / cycleDelay)  -- Increased wait
-    Root.Anchored = false
-end
--- Function to format elapsed time as HH:MM:SS
-local function formatTime(seconds)
-    local hours = math.floor(seconds / 3600)
-    local mins = math.floor((seconds % 3600) / 60)
-    local secs = math.floor(seconds % 60)
-    return string.format("%02d:%02d:%02d", hours, mins, secs)
-end
-
--- Update Stats Function
-local function updateStats()
-    local currentMoney = parseMoney(cashLabel.Text)
-    moneyReceived = currentMoney - lastMoney
-    totalEarning = totalEarning + moneyReceived
-    lastMoney = currentMoney
-
-    MoneyReceivedParagraph:Set({
-        Title = "Money Received (Last Cycle)",
-        Content = formatRupiah(moneyReceived)
-    })
-
-    TotalEarningParagraph:Set({
-        Title = "Total Earning",
-        Content = formatRupiah(totalEarning)
-    })
-end
-
--- Autofarm Toggle
-local autofarmActive = false
-local AutoFarmToggle = FarmTab:CreateToggle({
-    Name = "Start Autofarm (~1B / 10 Minutes)",
-    CurrentValue = false,
-    Flag = "AutoFarmToggle",
-    Callback = function(Value)
-        autofarmActive = Value
-        if autofarmActive then
-            startTime = tick()
-            initialMoney = parseMoney(cashLabel.Text)
-            lastMoney = initialMoney
-            totalEarning = 0
-            moneyReceived = 0
-            task.spawn(function()
-                while autofarmActive do
-                    pcall(TweenToJob)
-                    task.wait(cycleDelay)
-                    pcall(TakingJob)
-                    task.wait(cycleDelay)
-
-                    -- Check if the job destination is correct before spawning truck
-                    local Waypoint = workspace.Etc.Waypoint:FindFirstChild("Waypoint")
-                    local Label = Waypoint and Waypoint:FindFirstChild("BillboardGui") and Waypoint.BillboardGui:FindFirstChild("TextLabel")
-                    if Label and Label.Text == "PT CDID Cargo Malang" then
-                        pcall(SpawningTruck)
-                        task.wait(cycleDelay)
-                        pcall(MovingCharacterToDestination, CFrame.new(-7916.433, 385.897, 46837.558))
-                        task.wait(cycleDelay)
-                        pcall(CountdownTeleport, teleportDelay)
-                        pcall(SitInVehicle)
-                        task.wait(cycleDelay)
-                        pcall(CarTween, CFrame.new(-7846.73, 386.41, 46865.10))
-                        task.wait(cycleDelay)
-                        -- Update stats after each cycle
-                        updateStats()
-                    else
-                        print("Job not taken correctly, skipping truck spawn and delivery.")
-                        task.wait(1)  -- Increased wait before retrying
-                    end
+        local Follow = true
+        local followThread = task.spawn(function()
+            while Follow and autofarmActive do
+                if Car.PrimaryPart and Root then
+                    local offset = (Root.Position - Car.PrimaryPart.Position).Unit * 5
+                    local newPos = Root.Position + offset
+                    Car:PivotTo(CFrame.new(newPos))
                 end
-            end)
-        end
-    end,
-})
+                task.wait(0.3)
+            end
+        end)
 
--- Status Paragraph
-local StatusParagraph = FarmTab:CreateParagraph({
-    Title = "Status",
-    Content = "Idle"
-})
+        local AboveStart = Root.CFrame + Vector3.new(0, 100, 0)
+        local AboveDest = CFrame.new(Destination.Position + Vector3.new(0, 100, 0))
 
--- Update Status and Elapsed Time in real-time
-task.spawn(function()
-    while true do
-        if autofarmActive then
-            local elapsed = tick() - startTime
-            ElapsedTimeParagraph:Set({
-                Title = "Elapsed Time",
-                Content = formatTime(elapsed)
-            })
-            StatusParagraph:Set({
-                Title = "Status",
-                Content = "Autofarm Running"
-            })
-        else
-            StatusParagraph:Set({
-                Title = "Status",
-                Content = "Idle"
-            })
-            ElapsedTimeParagraph:Set({
-                Title = "Elapsed Time",
-                Content = "00:00:00"
-            })
-        end
+        local tween1 = TweenService:Create(Root, TweenInfo.new(5.0, Enum.EasingStyle.Quad), {CFrame = AboveStart})
+        tween1:Play()
+        tween1.Completed:Wait()
+
+        local tween2 = TweenService:Create(Root, TweenInfo.new(8.0, Enum.EasingStyle.Sine), {CFrame = AboveDest})
+        tween2:Play()
+        tween2.Completed:Wait()
+
+        local tween3 = TweenService:Create(Root, TweenInfo.new(6.0, Enum.EasingStyle.Exponential), {CFrame = Destination})
+        tween3:Play()
+        tween3.Completed:Wait()
+
+        Follow = false
+        task.wait()
+
+        if Car.PrimaryPart then Car.PrimaryPart.Anchored = false end
+        Root.Anchored = false
+    end)
+end
+
+function CountdownTeleport(seconds)
+    if not autofarmActive then return end
+    WaitingTeleportPara:Set({Title = "Waiting Teleport", Content = "Teleporting in " .. seconds .. " seconds..."})
+    for i = seconds, 1, -1 do
+        if not autofarmActive then return end
+        WaitingTeleportPara:Set({Title = "Waiting Teleport", Content = "Teleporting in " .. i .. " seconds..."})
         task.wait(1)
     end
-end)
+    WaitingTeleportPara:Set({Title = "Waiting Teleport", Content = "Not waiting"})
+end
+
+function SitInVehicle()
+    if not autofarmActive then return end
+    AutofarmStatsPara:Set({Title = "Autofarm Stats", Content = "Duduk di kendaraan..."})
+    pcall(function()
+        local Car = workspace.Vehicles:FindFirstChild(CarName)
+        local Hum = Player.Character and Player.Character:FindFirstChild("Humanoid")
+        local Seat = Car and Car:FindFirstChild("DriveSeat")
+        if Hum and Seat then pcall(function() Seat:Sit(Hum) end) end
+    end)
+end
+
+function CarTween(TargetCFrame)
+    if not autofarmActive then return end
+    AutofarmStatsPara:Set({Title = "Autofarm Stats", Content = "Melaju ke tujuan..."})
+    pcall(function()
+        local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
+        if not Root then return end
+        Root.Anchored = false
+
+        task.wait(0.5)
+
+        local Car = workspace.Vehicles:FindFirstChild(CarName)
+        if not Car then warn("Vehicle not found.") return end
+        if not Car.PrimaryPart then
+            local Seat = Car:FindFirstChild("DriveSeat")
+            if Seat then Car.PrimaryPart = Seat else return end
+        end
+
+        local Temp = Instance.new("CFrameValue", workspace)
+        Temp.Value = Car:GetPivot()
+
+        local Tween = game:GetService("TweenService"):Create(Temp, TweenInfo.new(4, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+            Value = TargetCFrame
+        })
+
+        Temp:GetPropertyChangedSignal("Value"):Connect(function()
+            Car:PivotTo(Temp.Value)
+        end)
+
+        Tween:Play()
+        Tween.Completed:Wait()
+        Temp:Destroy()
+
+        game.ReplicatedStorage.NetworkContainer.RemoteEvents.Job:FireServer("Truck")
+
+        task.wait(0.5)
+        Root.Anchored = true
+        task.wait(0.5)
+        Root.Anchored = false
+        task.wait(0.1)
+    end)
+end
+
+-- Toggle Autofarm
+local Toggle = Tab:CreateToggle({
+   Name = "Start Autofarm",
+   CurrentValue = false,
+   Flag = "AutofarmToggle",
+   Callback = function(Value)
+       autofarmActive = Value
+       print("Status 'auto farm' diatur ke: " .. tostring(autofarmActive))
+
+       if autofarmActive then
+           -- Reset stats saat mulai autofarm
+           moneyReceived = 0
+           startTime = tick()
+           autofarmStartTime = tick()
+           lastMoney = totalMoney
+           updateStats()
+           AutofarmStatsPara:Set({Title = "Autofarm Stats", Content = "Starting Autofarm"})
+           WaitingTeleportPara:Set({Title = "Waiting Teleport", Content = "Not waiting"})
+           
+           -- Loop update elapsed time setiap detik
+           task.spawn(function()
+               while autofarmActive do
+                   updateElapsedTime()
+                   task.wait(1)
+               end
+           end)
+           
+           task.spawn(function()
+               print("Proses auto farm dimulai... Target: 5B/Hour")
+               
+               while autofarmActive do
+                   if not autofarmActive then break end
+                   TweenToJob()
+                   task.wait(recallJobTime)
+
+                   if not autofarmActive then break end
+                   TakingJob()
+                   task.wait(recallJobTime)
+
+                   if not autofarmActive then break end
+                   SpawningTruck()
+                   task.wait(recallJobTime)
+
+                   if not autofarmActive then break end
+                   MovingCharacterToDestination(CFrame.new(-7916.433, 385.897, 46837.558))
+                   task.wait(recallJobTime)
+
+                   if not autofarmActive then break end
+                   CountdownTeleport(teleportTime)
+                   task.wait(recallJobTime)
+
+                   if not autofarmActive then break end
+                   SitInVehicle()
+                   task.wait(recallJobTime)
+                   
+                   if not autofarmActive then break end
+                   CarTween(CFrame.new(-7846.73, 386.41, 46865.10)) 
+                   task.wait(recallJobTime)
+               end
+               
+               print("Proses auto farm telah dihentikan.")
+               AutofarmStatsPara:Set({Title = "Autofarm Stats", Content = "Idle"})
+               WaitingTeleportPara:Set({Title = "Waiting Teleport", Content = "Not waiting"})
+           end)
+       else
+           AutofarmStatsPara:Set({Title = "Autofarm Stats", Content = "Idle"})
+           WaitingTeleportPara:Set({Title = "Waiting Teleport", Content = "Not waiting"})
+       end
+   end,
+})
+
+-- BUTTON EXIT AUTOFARM (LEAVE GAME)
+Tab:CreateButton({
+   Name = "Exit Autofarm",
+   Callback = function()
+       print("Exit Autofarm ditekan")
+
+       -- Matikan autofarm
+       autofarmActive = false
+
+       -- Lepaskan anchor
+       pcall(function()
+           local char = Player.Character
+           if char and char:FindFirstChild("HumanoidRootPart") then
+               char.HumanoidRootPart.Anchored = false
+           end
+       end)
+
+       task.wait(0.5)
+
+       -- Keluar dari game Roblox
+       game:Shutdown()
+   end,
+})

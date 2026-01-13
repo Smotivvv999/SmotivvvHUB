@@ -2,10 +2,10 @@
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-   Name = "s3raaa new eraa hub || cdid farm #1",
+   Name = "Rayfield Example Window",
    Icon = 0,
-   LoadingTitle = "Loading...",
-   LoadingSubtitle = "by s3reaa_beatiful",
+   LoadingTitle = "Rayfield Interface Suite",
+   LoadingSubtitle = "by Sirius",
    ShowText = "Rayfield",
    Theme = "Default",
    ToggleUIKeybind = "K",
@@ -46,7 +46,7 @@ local lastMoney = 0
 -- Paragraf untuk stats
 local totalMoneyPara = Tab:CreateParagraph({Title="Total Money", Content="Rp 0"})
 local moneyReceivedPara = Tab:CreateParagraph({Title="Total Earning", Content="Rp 0"})  -- Diubah dari "Money Received" ke "Total Earning"
-local moneyIncomePara = Tab:CreateParagraph({Title="Money Income", Content="Rp 0 / Hour"})
+local moneyIncomePara = Tab:CreateParagraph({Title="Money Received", Content="Rp 0 / Hour"})  -- Diubah dari "Money Income" ke "Money Received"
 
 -- Fungsi update stats
 local function updateStats()
@@ -71,7 +71,7 @@ local function updateStats()
     if elapsedTime > 0 then
         moneyIncome = (moneyReceived / elapsedTime) * 3600  -- Konversi ke per jam
     end
-    moneyIncomePara:Set({Title="Money Income", Content=formatRupiah(moneyIncome) .. " / Hour"})
+    moneyIncomePara:Set({Title="Money Received", Content=formatRupiah(moneyIncome) .. " / Hour"})  -- Diubah dari "Money Income" ke "Money Received"
 end
 
 -- Update stats awal
@@ -147,14 +147,14 @@ local function getExecutor()
     -- Jika masih unknown, cek variabel global
     if executor == "Unknown" then
         if syn then
-            executor = "Synapse X"
+            executor = "Delta"
             if syn.version then version = " v" .. syn.version end
         elseif krnl then
-            executor = "Krnl"
+            executor = "arceus X"
         elseif fluxus then
-            executor = "Fluxus"
+            executor = "Fluxus Z"
         elseif scriptware then
-            executor = "Delta"
+            executor = "codex"
         elseif xeno then
             executor = "Xeno"
             if xeno.version then version = " v" .. xeno.version end
@@ -178,17 +178,38 @@ local Paragraph = Tab:CreateParagraph({Title = "Executor", Content = getExecutor
 
 local Section = Tab:CreateSection("Autofarm [CAR DRIVING INDONESIA]")
 
+-- Variabel untuk webhook URL
+local webhookURL = ""
+
+-- Fungsi untuk validasi URL webhook Discord
+local function isValidDiscordWebhook(url)
+    -- Cek apakah URL dimulai dengan https://discord.com/api/webhooks/ atau https://discordapp.com/api/webhooks/
+    if string.match(url, "^https://discord%.com/api/webhooks/%d+/%w+$") or string.match(url, "^https://discordapp%.com/api/webhooks/%d+/%w+$") then
+        return true
+    end
+    return false
+end
+
 local Input = Tab:CreateInput({
-   Name = "Webhoks url",
-   CurrentValue = "",
-   PlaceholderText = "Input Placeholder",
-   RemoveTextAfterFocusLost = false,
-   Flag = "Input1",
-   Callback = function(Text)
-   -- The function that takes place when the input is changed
-   -- The variable (Text) is a string for the value in the text box
-   end,
+    Name = "Webhooks url",
+    CurrentValue = "",
+    PlaceholderText = "Paste Discord Webhook URL",
+    RemoveTextAfterFocusLost = false,
+    Flag = "WebhookInput",
+    Callback = function(Text)
+        local url = tostring(Text):gsub("%s+", "")
+
+        -- VALIDASI PALING AMAN (executor proof)
+        if url:find("discord") and url:find("/api/webhooks/") then
+            webhookURL = url
+            print("Webhook URL SET:", webhookURL)
+        else
+            webhookURL = ""
+            warn("Invalid Discord Webhook URL")
+        end
+    end,
 })
+
 
 local Section = Tab:CreateSection("Autofarm [CAR DRIVING INDONESIA]")
 
@@ -196,6 +217,7 @@ local Player = game.Players.LocalPlayer
 local CarName = Player.Name .. "sCar"
 local TweenService = game:GetService("TweenService")
 local Vim = game:GetService("VirtualInputManager")
+local HttpService = game:GetService("HttpService")
 
 -- Variabel untuk autofarm
 local autofarmActive = false
@@ -219,6 +241,60 @@ local function updateElapsedTime()
     end
 end
 
+local function sendWebhook(url, statusFarm, username, totalMoney, totalEarnings, elapsedTime)
+    if not url or url == "" then return end
+
+    local httpRequest =
+        (syn and syn.request) or
+        (http_request) or
+        (request)
+
+    if not httpRequest then
+        warn("HTTP request function not supported by executor")
+        return
+    end
+
+    -- Warna embed: hijau untuk sukses, merah untuk gagal
+    local color = statusFarm == "Sukses" and 0x00FF00 or 0xFF0000
+
+    local payload = {
+        username = "BOT S3RA NEW ERA #1",
+        avatar_url = "https://i.imgur.com/rdm3W9t.png", -- avatar bot
+        embeds = {{
+            title = "👑 CAR DRIVING INDONESIA",
+            description = "Autofarm job telah berhasil diselesaikan!",
+            color = color,
+            fields = {
+                { name = "📝 Status Farm", value = tostring(statusFarm), inline = true },
+                { name = "👤 Username", value = tostring(username), inline = true },
+                { name = "💰 Total Money", value = tostring(totalMoney), inline = true },
+                { name = "💵 Total Earnings", value = tostring(totalEarnings), inline = true },
+                { name = "⏱️ Elapsed Time", value = tostring(elapsedTime), inline = true }
+            },
+            footer = {
+                text = "Car Driving Indonesia | Autofarm",
+                icon_url = "https://i.imgur.com/rdm3W9t.png"
+            },
+            timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
+        }}
+    }
+
+    local success, err = pcall(function()
+        httpRequest({
+            Url = url,
+            Method = "POST",
+            Headers = {
+                ["Content-Type"] = "application/json"
+            },
+            Body = HttpService:JSONEncode(payload)
+        })
+    end)
+
+    if not success then
+        warn("Webhook failed:", err)
+    end
+end
+
 -- Fungsi tween teleport ke area kerja
 function TweenToJob()
     if not autofarmActive then return end
@@ -235,12 +311,12 @@ function TweenToJob()
 
         task.wait(1.0)
         TweenService:Create(Root, TweenInfo.new(2.0, Enum.EasingStyle.Quad), {
-            CFrame = CFrame.new(34938.02, 134.51, -54577.36)
+            CFrame = CFrame.new(-21797.01, 1042.02, -26796.73)
         }):Play()
 
         task.wait(2.0)
         TweenService:Create(Root, TweenInfo.new(2.0, Enum.EasingStyle.Exponential), {
-            CFrame = CFrame.new(34938.02, 134.51, -54577.36)
+            CFrame = CFrame.new(-21797.01, 1042.02, -26796.73)
         }):Play()
 
         task.wait(2.0)
@@ -270,7 +346,7 @@ function TakingJob()
 
             if Root then Root.Anchored = true end
 
-            if Label and Label.Text ~= "PT CDID Cargo Malang" then
+            if Label and Label.Text ~= "Rojod Semarang" then
                 game.ReplicatedStorage.NetworkContainer.RemoteEvents.Job:FireServer("Truck")
                 local Prompt = workspace.Etc.Job.Truck.Starter:FindFirstChildWhichIsA("ProximityPrompt", true)
                 if Prompt then
@@ -285,7 +361,7 @@ function TakingJob()
     until (function()
         local Waypoint = workspace.Etc.Waypoint:FindFirstChild("Waypoint")
         local Label = Waypoint and Waypoint:FindFirstChild("BillboardGui") and Waypoint.BillboardGui:FindFirstChild("TextLabel")
-        return Label and Label.Text == "PT CDID Cargo Malang"
+        return Label and Label.Text == "Rojod Semarang"
     end)()
 
     pcall(function()
@@ -301,7 +377,7 @@ function SpawningTruck()
         local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
         if not Root then return end
 
-        Root.CFrame = CFrame.new(35163.45, 134.51, -54686.68)
+        Root.CFrame = CFrame.new(-21782.94, 1042.03, -26786.95)
 
         task.wait(3.0)
         Vim:SendKeyEvent(true, "F", false, game)
@@ -494,7 +570,7 @@ local Toggle = Tab:CreateToggle({
                    task.wait(recallJobTime)
 
                    if not autofarmActive then break end
-                   MovingCharacterToDestination(CFrame.new(-7916.433, 385.897, 46837.558))
+                   MovingCharacterToDestination(CFrame.new(-50937.152, 1012.215, -86353.031))
                    task.wait(recallJobTime)
 
                    if not autofarmActive then break end
@@ -506,8 +582,11 @@ local Toggle = Tab:CreateToggle({
                    task.wait(recallJobTime)
                    
                    if not autofarmActive then break end
-                   CarTween(CFrame.new(-7846.73, 386.41, 46865.10)) 
+                   CarTween(CFrame.new(-50899.601, 1013.977, -86534.976)) 
                    task.wait(recallJobTime)
+
+                   -- Kirim webhook setelah job berhasil
+                   sendWebhook(webhookURL, "Active", Player.Name, formatRupiah(totalMoney), formatRupiah(moneyReceived), formatElapsedTime(tick() - autofarmStartTime), "Job completed successfully")
                end
                
                print("Proses auto farm telah dihentikan.")
@@ -544,3 +623,195 @@ Tab:CreateButton({
        game:Shutdown()
    end,
 })
+
+local Tab = Window:CreateTab("Spin Box", "box")
+local Section = Tab:CreateSection("open to spin box")
+
+--// Variabel global untuk batas spin (dimulai dari 5)
+local maxSpins = 5
+local currentSpins = maxSpins
+
+--// Variabel untuk cooldown 24 jam (dalam detik)
+local cooldownDuration = 24 * 60 * 60 -- 24 jam
+local cooldownEndTime = nil -- Waktu akhir cooldown
+
+--// Label untuk menampilkan jumlah spin tersisa
+local SpinLabel = Tab:CreateLabel("Spins Remaining: " .. currentSpins .. "/" .. maxSpins)
+
+--// Label untuk menampilkan waktu cooldown jika aktif
+local CooldownLabel = Tab:CreateLabel("Cooldown: Not active")
+
+--// Fungsi untuk update label cooldown secara real-time
+local function updateCooldownLabel()
+    if cooldownEndTime then
+        local remaining = cooldownEndTime - os.time()
+        if remaining > 0 then
+            local hours = math.floor(remaining / 3600)
+            local minutes = math.floor((remaining % 3600) / 60)
+            local seconds = remaining % 60
+            CooldownLabel:Set(string.format("Cooldown: %02d:%02d:%02d", hours, minutes, seconds))
+        else
+            -- Reset spins setelah cooldown selesai
+            currentSpins = maxSpins
+            SpinLabel:Set("Spins Remaining: " .. currentSpins .. "/" .. maxSpins)
+            CooldownLabel:Set("Cooldown: Not active")
+            cooldownEndTime = nil
+            Rayfield:Notify({
+                Title = "Spins Reset!",
+                Content = "Your spins have been reset. You can spin again!",
+                Duration = 5,
+                Image = "rotate-ccw"
+            })
+        end
+    end
+end
+
+--// Loop untuk update cooldown setiap detik
+task.spawn(function()
+    while true do
+        updateCooldownLabel()
+        task.wait(1)
+    end
+end)
+
+--// Tombol untuk Limited Box
+local LimitedBoxButton = Tab:CreateButton({
+    Name = "Spin Limited Box",
+    Callback = function()
+        updateCooldownLabel() -- Update cooldown sebelum cek
+        if cooldownEndTime and os.time() < cooldownEndTime then
+            local remaining = cooldownEndTime - os.time()
+            local hours = math.floor(remaining / 3600)
+            local minutes = math.floor((remaining % 3600) / 60)
+            local seconds = remaining % 60
+            Rayfield:Notify({
+                Title = "Cooldown Active",
+                Content = string.format("Please wait %02d:%02d:%02d before spinning again.", hours, minutes, seconds),
+                Duration = 4,
+                Image = "clock"
+            })
+            return
+        end
+        if currentSpins > 0 then
+            startSpin("Limited Box")
+        else
+            Rayfield:Notify({
+                Title = "No Spins Left",
+                Content = "You have used all your spins. Cooldown started for 24 hours.",
+                Duration = 4,
+                Image = "x-octagon"
+            })
+            -- Mulai cooldown jika belum aktif
+            if not cooldownEndTime then
+                cooldownEndTime = os.time() + cooldownDuration
+            end
+        end
+    end
+})
+
+--// Tombol untuk Gamepass Box
+local GamepassBoxButton = Tab:CreateButton({
+    Name = "Spin Gamepass Box",
+    Callback = function()
+        updateCooldownLabel() -- Update cooldown sebelum cek
+        if cooldownEndTime and os.time() < cooldownEndTime then
+            local remaining = cooldownEndTime - os.time()
+            local hours = math.floor(remaining / 3600)
+            local minutes = math.floor((remaining % 3600) / 60)
+            local seconds = remaining % 60
+            Rayfield:Notify({
+                Title = "Cooldown Active",
+                Content = string.format("Please wait %02d:%02d:%02d before spinning again.", hours, minutes, seconds),
+                Duration = 4,
+                Image = "clock"
+            })
+            return
+        end
+        if currentSpins > 0 then
+            startSpin("Gamepass Box")
+        else
+            Rayfield:Notify({
+                Title = "No Spins Left",
+                Content = "You have used all your spins. Cooldown started for 24 hours.",
+                Duration = 4,
+                Image = "x-octagon"
+            })
+            -- Mulai cooldown jika belum aktif
+            if not cooldownEndTime then
+                cooldownEndTime = os.time() + cooldownDuration
+            end
+        end
+    end
+})
+
+--// Fungsi universal untuk spin berdasarkan pilihan dropdown
+function startSpin(spinType)
+    local args
+    local notifyTitle
+    local notifyContent
+    local notifyImage
+
+    -- Atur parameter berdasarkan jenis spin (kondisi untuk Default/Claim dihapus)
+    if spinType == "Limited Box" then
+        args = { "Buy", "Limited Box" }
+        notifyTitle = "Limited Box"
+        notifyContent = "Spinning for limited rewards..."
+        notifyImage = "package-open"
+    elseif spinType == "Gamepass Box" then
+        args = { "Buy", "Gamepass Box" }
+        notifyTitle = "Gamepass Box"
+        notifyContent = "Spinning with premium luck..."
+        notifyImage = "zap"
+    else
+        Rayfield:Notify({
+            Title = "Invalid Spin Type",
+            Content = "Unknown option selected.",
+            Duration = 4,
+            Image = "x-octagon"
+        })
+        return
+    end
+
+    -- Tampilkan notifikasi awal
+    Rayfield:Notify({
+        Title = notifyTitle,
+        Content = notifyContent,
+        Duration = 3,
+        Image = notifyImage
+    })
+
+    -- Simulasi animasi spin
+    task.wait(3)
+
+    -- Kirim RemoteEvent ke server
+    local success, err = pcall(function()
+        game:GetService("ReplicatedStorage")
+            :WaitForChild("NetworkContainer")
+            :WaitForChild("RemoteEvents")
+            :WaitForChild("Box")
+            :FireServer(unpack(args))
+    end)
+
+    -- Tampilkan notifikasi hasil dan kurangi spin jika berhasil
+    if success then
+        currentSpins = currentSpins - 1
+        SpinLabel:Set("Spins Remaining: " .. currentSpins .. "/" .. maxSpins)  -- Update label
+        Rayfield:Notify({
+            Title = "Spin Successful!",
+            Content = "You received a reward from: " .. spinType .. ". Spins left: " .. currentSpins,
+            Duration = 5,
+            Image = "gift"
+        })
+        -- Jika spins habis, mulai cooldown
+        if currentSpins == 0 and not cooldownEndTime then
+            cooldownEndTime = os.time() + cooldownDuration
+        end
+    else
+        Rayfield:Notify({
+            Title = "Spin Failed!",
+            Content = "Error: " .. tostring(err),
+            Duration = 5,
+            Image = "alert-circle"
+        })
+    end
+end

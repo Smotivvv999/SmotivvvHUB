@@ -1,1 +1,490 @@
 
+-- =========================================
+-- 🔐 ALLGOODSTORE PREMIUM HUB (COMBINED SYSTEM)
+-- =========================================
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local Lighting = game:GetService("Lighting")
+local Workspace = game:GetService("Workspace")
+local LocalPlayer = Players.LocalPlayer
+
+-- =============================
+-- 🔑 KEY SYSTEM CONFIG
+-- =============================
+
+local RAW_KEY_URL = "https://raw.githubusercontent.com/Smotivvv999/SmotivvvHUB/main/keys.txt"
+
+local validKeys = {
+    "allgoodstore_buyer1001", "allgoodstore_buyer1002", "allgoodstore_buyer1003",
+    "allgoodstore_buyer1004", "allgoodstore_buyer1005", "allgoodstore_buyer1006",
+    "allgoodstore_buyer1007", "allgoodstore_buyer1008", "allgoodstore_buyer1009",
+    "allgoodstore_buyer1010", "allgoodstore_buyer1011", "allgoodstore_buyer1012",
+    "allgoodstore_buyer1013", "allgoodstore_buyer1014", "allgoodstore_buyer1015",
+    "allgoodstore_buyer1016", "allgoodstore_buyer1017", "allgoodstore_buyer1018",
+    "allgoodstore_buyer1019", "allgoodstore_buyer1020", "allgoodstore_buyer1021",
+    "allgoodstore_buyer1022", "allgoodstore_buyer1023", "allgoodstore_buyer1024",
+    "allgoodstore_buyer1025"
+}
+
+-- =============================
+-- 🔍 KEY VALIDATION
+-- =============================
+
+local function fetchKeys()
+    local success, result = pcall(function()
+        return game:HttpGet(RAW_KEY_URL)
+    end)
+    
+    if success and result and result ~= "" then
+        for key in string.gmatch(result, "[^\r\n]+") do
+            key = key:gsub("%s+", "")
+            if key ~= "" then
+                table.insert(validKeys, key)
+            end
+        end
+    else
+        warn("⚠️ Failed to fetch GitHub keys. Using backup keys.")
+    end
+end
+
+local function isValidKey(input)
+    input = tostring(input):gsub("%s+", "")
+    for _, key in ipairs(validKeys) do
+        if input == key then
+            return true
+        end
+    end
+    return false
+end
+
+-- =============================
+-- 🎨 KEY UI SYSTEM
+-- =============================
+
+local function createKeyUI()
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = "AllGoodStoreKeyUI"
+    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+    ScreenGui.ResetOnSpawn = false
+
+    local Main = Instance.new("Frame")
+    Main.Parent = ScreenGui
+    Main.Size = UDim2.new(0, 430, 0, 250)
+    Main.Position = UDim2.new(0.5, -215, 0.5, -125)
+    Main.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+    Main.BorderSizePixel = 0
+    Main.BackgroundTransparency = 1
+
+    Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 20)
+
+    local stroke = Instance.new("UIStroke", Main)
+    stroke.Color = Color3.fromRGB(70, 70, 75)
+    stroke.Thickness = 1
+
+    TweenService:Create(Main, TweenInfo.new(0.4), {BackgroundTransparency = 0}):Play()
+
+    -- Title
+    local Title = Instance.new("TextLabel")
+    Title.Parent = Main
+    Title.Size = UDim2.new(1, 0, 0, 60)
+    Title.BackgroundTransparency = 1
+    Title.Text = "allgoodstore25 premium access"
+    Title.TextColor3 = Color3.fromRGB(240, 240, 240)
+    Title.Font = Enum.Font.GothamSemibold
+    Title.TextSize = 24
+
+    -- Subtitle
+    local Sub = Instance.new("TextLabel")
+    Sub.Parent = Main
+    Sub.Size = UDim2.new(1, 0, 0, 30)
+    Sub.Position = UDim2.new(0, 0, 0.25, 0)
+    Sub.BackgroundTransparency = 1
+    Sub.Text = "enter your product key to whatsappp"
+    Sub.TextColor3 = Color3.fromRGB(160, 160, 165)
+    Sub.Font = Enum.Font.Gotham
+    Sub.TextSize = 18
+
+    -- TextBox
+    local TextBox = Instance.new("TextBox")
+    TextBox.Parent = Main
+    TextBox.Size = UDim2.new(0.85, 0, 0, 45)
+    TextBox.Position = UDim2.new(0.075, 0, 0.5, 0)
+    TextBox.PlaceholderText = "Enter your key here..."
+    TextBox.Text = ""
+    TextBox.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+    TextBox.TextColor3 = Color3.new(1, 1, 1)
+    TextBox.Font = Enum.Font.Gotham
+    TextBox.TextSize = 18
+    TextBox.ClearTextOnFocus = false
+    Instance.new("UICorner", TextBox).CornerRadius = UDim.new(0, 12)
+
+    -- Button
+    local Button = Instance.new("TextButton")
+    Button.Parent = Main
+    Button.Size = UDim2.new(0.85, 0, 0, 45)
+    Button.Position = UDim2.new(0.075, 0, 0.75, 0)
+    Button.Text = "Verify Key"
+    Button.TextColor3 = Color3.new(1, 1, 1)
+    Button.Font = Enum.Font.GothamSemibold
+    Button.TextSize = 20
+    Button.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
+    Instance.new("UICorner", Button).CornerRadius = UDim.new(0, 12)
+
+    -- Hover effects
+    Button.MouseEnter:Connect(function()
+        TweenService:Create(Button, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(0, 150, 255)}):Play()
+    end)
+
+    Button.MouseLeave:Connect(function()
+        TweenService:Create(Button, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(0, 120, 215)}):Play()
+    end)
+
+    return ScreenGui, Main, Button, TextBox
+end
+
+-- =============================
+-- 🚀 MAIN HUB SYSTEM
+-- =============================
+
+local function loadMainHub()
+    local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+    
+    local Window = Rayfield:CreateWindow({
+        Name = "allgoodstore25_hub || premium [only]",
+        Icon = 0,
+        LoadingTitle = "loading...",
+        LoadingSubtitle = "by all anak manizzz",
+        ShowText = "Rayfield",
+        Theme = "Default",
+        ToggleUIKeybind = "K",
+        DisableRayfieldPrompts = false,
+        DisableBuildWarnings = false,
+        ConfigurationSaving = {
+            Enabled = true,
+            FolderName = "allgoodstore25_hub",
+            FileName = "HubConfig"
+        }
+    })
+
+    -- =========================
+    -- STATS TAB
+    -- =========================
+    local StatsTab = Window:CreateTab("Stats", "trending-up")
+    
+    -- Autofarm Section
+    local AutofarmSection = StatsTab:CreateSection("Farm Stats")
+    local AutofarmStatsPara = StatsTab:CreateParagraph({Title = "Autofarm Stats", Content = "Idle"})
+    local WaitingTeleportPara = StatsTab:CreateParagraph({Title = "Waiting Teleport", Content = "Not waiting"})
+    local ElapsedTimePara = StatsTab:CreateParagraph({Title = "Elapsed Time", Content = "00:00:00"})
+
+    -- Earn Stats Section
+    local EarnSection = StatsTab:CreateSection("Earn Stats")
+    
+    -- Format functions
+    local function formatRupiah(amount)
+        if not amount or amount == 0 then return "Rp 0" end
+        local formatted = string.format("%.0f", amount)
+        formatted = formatted:reverse():gsub("(%d%d%d)", "%1."):reverse()
+        return "Rp " .. formatted:gsub("^,", "")
+    end
+
+    local function formatShort(amount)
+        if not amount or amount == 0 then return "0" end
+        if amount >= 1000000000 then
+            return string.format("%.1fB", amount / 1000000000)
+        elseif amount >= 1000000 then
+            return string.format("%.1fM", amount / 1000000)
+        elseif amount >= 1000 then
+            return string.format("%.1fK", amount / 1000)
+        else
+            return tostring(amount)
+        end
+    end
+
+    -- Stats variables
+    local totalMoney = 0
+    local moneyReceived = 0
+    local moneyIncome = 0
+    local startTime = tick()
+    local lastMoney = 0
+
+    local totalMoneyPara = StatsTab:CreateParagraph({Title = "Total Money", Content = "Rp 0"})
+    local moneyReceivedPara = StatsTab:CreateParagraph({Title = "Total Earning", Content = "Rp 0"})
+    local moneyIncomePara = StatsTab:CreateParagraph({Title = "Money Received", Content = "0 / Hour"})
+
+    -- Update stats function
+    local function updateStats()
+        local success, result = pcall(function()
+            local cashFrame = LocalPlayer.PlayerGui.Main.Container.Hub.CashFrame.Frame.TextLabel
+            local currentMoneyText = cashFrame.Text
+            
+            local cleanedText = currentMoneyText:gsub("[^%d]", "")
+            local currentMoney = tonumber(cleanedText) or 0
+            
+            totalMoney = currentMoney
+            totalMoneyPara:Set({Title = "Total Money", Content = formatRupiah(totalMoney)})
+            
+            if currentMoney > lastMoney then
+                moneyReceived = moneyReceived + (currentMoney - lastMoney)
+            end
+            lastMoney = currentMoney
+            
+            moneyReceivedPara:Set({Title = "Total Earning", Content = formatRupiah(moneyReceived)})
+            
+            local elapsedTime = tick() - startTime
+            if elapsedTime > 0 then
+                moneyIncome = (moneyReceived / elapsedTime) * 3600
+            end
+            moneyIncomePara:Set({Title = "Money Received", Content = formatShort(moneyIncome) .. " / Hour"})
+        end)
+        
+        if not success then
+            warn("Stats update error:", result)
+        end
+    end
+
+    -- Initial update and connections
+    updateStats()
+    
+    task.spawn(function()
+        while true do
+            task.wait(1)
+            updateStats()
+        end
+    end)
+
+    -- =========================
+    -- CONFIGURATION TAB
+    -- =========================
+    local ConfigTab = Window:CreateTab("Configuration", "settings")
+    local ConfigSection = ConfigTab:CreateSection("Set tele & recall job")
+
+    ConfigTab:CreateParagraph({
+        Title = "Set Config Working",
+        Content = "Teleport: 18 detik\nRecall Job: 0.3"
+    })
+
+    local recallJobTime = 0.3
+    local teleportTime = 18
+
+    ConfigTab:CreateInput({
+        Name = "Teleport",
+        CurrentValue = "18",
+        PlaceholderText = "Input teleport time in seconds",
+        RemoveTextAfterFocusLost = false,
+        Flag = "TeleportInput",
+        Callback = function(Text)
+            teleportTime = tonumber(Text) or 18
+            print("Teleport time set to:", teleportTime)
+        end
+    })
+
+    ConfigTab:CreateInput({
+        Name = "Recall job",
+        CurrentValue = "0.5",
+        PlaceholderText = "Input recall job time in seconds",
+        RemoveTextAfterFocusLost = false,
+        Flag = "RecallJobInput",
+        Callback = function(Text)
+            recallJobTime = tonumber(Text) or 0.3
+            print("Recall job time set to:", recallJobTime)
+        end
+    })
+
+    -- =========================
+    -- AUTOFARM SYSTEM
+    -- =========================
+    local AutofarmSection = ConfigTab:CreateSection("Config Autofarm System")
+
+    -- State variables
+    local reductionLagActive = false
+    local TaskWatchdogEnabled = false
+    local AutoCleanupEnabled = false
+    local AutoCleanupRunning = false
+
+    local WatchedTasks = {}
+    local Resources = {
+        Connections = {},
+        Instances = {}
+    }
+
+    -- Reduction Lag System
+    local function applyReductionLag(enable)
+        reductionLagActive = enable
+        
+        if enable then
+            print("⚡ Reduction Lag System: ENABLED")
+            pcall(function()
+                Lighting.GlobalShadows = false
+                Lighting.FogEnd = 100000
+                Lighting.Brightness = 2
+            end)
+
+            for _, v in ipairs(Workspace:GetDescendants()) do
+                if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Fire") then
+                    v.Enabled = false
+                elseif v:IsA("Decal") or v:IsA("Texture") then
+                    v.Transparency = 1
+                end
+            end
+        else
+            print("⚡ Reduction Lag System: DISABLED")
+            pcall(function()
+                Lighting.GlobalShadows = true
+                Lighting.Brightness = 1
+                Lighting.FogEnd = 100000
+            end)
+
+            for _, v in ipairs(Workspace:GetDescendants()) do
+                if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Fire") then
+                    v.Enabled = true
+                elseif v:IsA("Decal") or v:IsA("Texture") then
+                    v.Transparency = 0
+                end
+            end
+        end
+    end
+
+    -- Task Watchdog System
+    local function AddTask(taskName, taskFunc)
+        WatchedTasks[taskName] = {
+            func = taskFunc,
+            running = false
+        }
+    end
+
+    local function StartTaskWatchdog()
+        task.spawn(function()
+            while TaskWatchdogEnabled do
+                for name, taskData in pairs(WatchedTasks) do
+                    if not taskData.running then
+                        taskData.running = true
+                        task.spawn(function()
+                            local success, err = pcall(taskData.func)
+                            if not success then
+                                warn("[Watchdog] Task crashed:", name, err)
+                            end
+                            taskData.running = false
+                        end)
+                    end
+                end
+                task.wait(2)
+            end
+        end)
+    end
+
+    -- Resource Tracking
+    local function TrackConnection(conn)
+        table.insert(Resources.Connections, conn)
+    end
+
+    local function TrackInstance(inst)
+        table.insert(Resources.Instances, inst)
+    end
+
+    local function CleanupResources()
+        for _, conn in ipairs(Resources.Connections) do
+            if conn then
+                pcall(function() conn:Disconnect() end)
+            end
+        end
+        Resources.Connections = {}
+
+        for _, inst in ipairs(Resources.Instances) do
+            if inst and inst.Destroy then
+                pcall(function() inst:Destroy() end)
+            end
+        end
+        Resources.Instances = {}
+        
+        print("[Cleanup] Resources cleaned")
+    end
+
+    -- Auto Cleanup System
+    local function StartAutoCleanup()
+        if AutoCleanupRunning then return end
+        AutoCleanupRunning = true
+        
+        task.spawn(function()
+            while AutoCleanupEnabled do
+                task.wait(60) -- Cleanup every 60 seconds
+                if AutoCleanupEnabled then
+                    CleanupResources()
+                end
+            end
+            AutoCleanupRunning = false
+        end)
+    end
+
+    -- UI Toggles for Autofarm Systems
+    ConfigTab:CreateToggle({
+        Name = "Reduction Lag",
+        CurrentValue = false,
+        Flag = "ReductionLag",
+        Callback = function(Value)
+            applyReductionLag(Value)
+        end
+    })
+
+    ConfigTab:CreateToggle({
+        Name = "Task Watchdog",
+        CurrentValue = false,
+        Flag = "TaskWatchdog",
+        Callback = function(Value)
+            TaskWatchdogEnabled = Value
+            if Value then
+                StartTaskWatchdog()
+            end
+        end
+    })
+
+    ConfigTab:CreateToggle({
+        Name = "Auto Cleanup",
+        CurrentValue = false,
+        Flag = "AutoCleanup",
+        Callback = function(Value)
+            AutoCleanupEnabled = Value
+            if Value then
+                StartAutoCleanup()
+            end
+        end
+    })
+
+    print("✅ Main Hub Loaded Successfully")
+end
+
+-- =============================
+-- 🎯 INITIALIZATION
+-- =============================
+
+local function initialize()
+    fetchKeys()
+    local ScreenGui, MainFrame, Button, TextBox = createKeyUI()
+    
+    Button.MouseButton1Click:Connect(function()
+        if isValidKey(TextBox.Text) then
+            -- Success animation
+            Button.Text = "Verified ✓"
+            Button.BackgroundColor3 = Color3.fromRGB(0, 200, 120)
+            
+            task.wait(0.6)
+            
+            TweenService:Create(MainFrame, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
+            task.wait(0.3)
+            
+            ScreenGui:Destroy()
+            loadMainHub()
+        else
+            -- Error animation
+            TextBox.Text = ""
+            TextBox.PlaceholderText = "Invalid Key ❌"
+            TweenService:Create(TextBox, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(50, 20, 20)}):Play()
+            task.wait(0.2)
+            TweenService:Create(TextBox, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(35, 35, 40)}):Play()
+        end
+    end)
+end
+
+-- Start the system
+initialize()

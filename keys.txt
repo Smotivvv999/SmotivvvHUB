@@ -1,1 +1,5 @@
 allgoodstore_buyer1001
+allgoodstore_buyer1002
+allgoodstore_buyer1003
+allgoodstore_buyer1004
+allgoodstore_buyer1005

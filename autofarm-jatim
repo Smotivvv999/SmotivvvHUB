@@ -1,1 +1,228 @@
+--====================================================
+-- 🔐 ALLGOODSTORE KEY + AUTOFARM SYSTEM (CLEAN)
+--====================================================
 
+--// SERVICES
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local Lighting = game:GetService("Lighting")
+local Workspace = game:GetService("Workspace")
+local LocalPlayer = Players.LocalPlayer
+
+--====================================================
+-- 🔑 KEY CONFIG
+--====================================================
+
+local RAW_KEY_URL = "https://raw.githubusercontent.com/Smotivvv999/SmotivvvHUB/main/keys.txt"
+
+local validKeys = {
+    "allgoodstore_buyer1001","allgoodstore_buyer1002",
+    "allgoodstore_buyer1003","allgoodstore_buyer1004",
+    "allgoodstore_buyer1005","allgoodstore_buyer1006",
+    "allgoodstore_buyer1007","allgoodstore_buyer1008",
+    "allgoodstore_buyer1009","allgoodstore_buyer1010",
+    "allgoodstore_buyer1011","allgoodstore_buyer1012",
+    "allgoodstore_buyer1013","allgoodstore_buyer1014",
+    "allgoodstore_buyer1015","allgoodstore_buyer1016",
+    "allgoodstore_buyer1017","allgoodstore_buyer1018",
+    "allgoodstore_buyer1019","allgoodstore_buyer1020",
+    "allgoodstore_buyer1021","allgoodstore_buyer1022",
+    "allgoodstore_buyer1023","allgoodstore_buyer1024",
+    "allgoodstore_buyer1025"
+}
+
+-- Fetch keys from GitHub
+pcall(function()
+    local result = game:HttpGet(RAW_KEY_URL)
+    for key in string.gmatch(result, "[^\r\n]+") do
+        key = key:gsub("%s+","")
+        if key ~= "" then
+            table.insert(validKeys, key)
+        end
+    end
+end)
+
+local function isValidKey(input)
+    input = tostring(input):gsub("%s+","")
+    for _, key in ipairs(validKeys) do
+        if input == key then
+            return true
+        end
+    end
+    return false
+end
+
+--====================================================
+-- 🎨 KEY UI
+--====================================================
+
+local ScreenGui = Instance.new("ScreenGui", LocalPlayer.PlayerGui)
+ScreenGui.ResetOnSpawn = false
+
+local Main = Instance.new("Frame", ScreenGui)
+Main.Size = UDim2.new(0,430,0,250)
+Main.Position = UDim2.new(0.5,-215,0.5,-125)
+Main.BackgroundColor3 = Color3.fromRGB(25,25,30)
+Main.BackgroundTransparency = 1
+Instance.new("UICorner",Main).CornerRadius = UDim.new(0,20)
+
+TweenService:Create(Main,TweenInfo.new(0.4),{BackgroundTransparency = 0}):Play()
+
+local Title = Instance.new("TextLabel",Main)
+Title.Size = UDim2.new(1,0,0,60)
+Title.BackgroundTransparency = 1
+Title.Text = "ALLGOODSTORE PREMIUM ACCESS"
+Title.Font = Enum.Font.GothamSemibold
+Title.TextSize = 22
+Title.TextColor3 = Color3.new(1,1,1)
+
+local TextBox = Instance.new("TextBox",Main)
+TextBox.Size = UDim2.new(0.85,0,0,45)
+TextBox.Position = UDim2.new(0.075,0,0.45,0)
+TextBox.PlaceholderText = "Enter your key..."
+TextBox.ClearTextOnFocus = false
+TextBox.Font = Enum.Font.Gotham
+TextBox.TextSize = 18
+TextBox.BackgroundColor3 = Color3.fromRGB(35,35,40)
+TextBox.TextColor3 = Color3.new(1,1,1)
+Instance.new("UICorner",TextBox).CornerRadius = UDim.new(0,12)
+
+local Button = Instance.new("TextButton",Main)
+Button.Size = UDim2.new(0.85,0,0,45)
+Button.Position = UDim2.new(0.075,0,0.7,0)
+Button.Text = "Verify Key"
+Button.Font = Enum.Font.GothamSemibold
+Button.TextSize = 20
+Button.TextColor3 = Color3.new(1,1,1)
+Button.BackgroundColor3 = Color3.fromRGB(0,120,215)
+Instance.new("UICorner",Button).CornerRadius = UDim.new(0,12)
+
+--====================================================
+-- 🚀 LOAD HUB AFTER KEY
+--====================================================
+
+local function LoadHub()
+
+    -- Destroy key UI
+    ScreenGui:Destroy()
+
+    -- Load Rayfield
+    local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
+
+    local Window = Rayfield:CreateWindow({
+        Name = "allgoodstore25_hub | premium",
+        LoadingTitle = "Loading...",
+        LoadingSubtitle = "Premium Access",
+        ConfigurationSaving = {
+            Enabled = true,
+            FileName = "AllGoodHub"
+        }
+    })
+
+    --====================================================
+    -- 📊 STATS TAB
+    --====================================================
+
+    local StatsTab = Window:CreateTab("Stats","trending-up")
+
+    local totalMoney = 0
+    local earned = 0
+    local lastMoney = 0
+    local startTime = tick()
+
+    local totalPara = StatsTab:CreateParagraph({Title="Total Money",Content="Rp 0"})
+    local earnPara = StatsTab:CreateParagraph({Title="Total Earning",Content="Rp 0"})
+    local incomePara = StatsTab:CreateParagraph({Title="Income / Hour",Content="0"})
+
+    local function formatRupiah(n)
+        local s = tostring(math.floor(n))
+        return "Rp "..s:reverse():gsub("(%d%d%d)","%1."):reverse():gsub("^%.","")
+    end
+
+    local function updateMoney()
+        local path = LocalPlayer.PlayerGui.Main.Container.Hub.CashFrame.Frame.TextLabel
+        if not path then return end
+
+        local clean = path.Text:gsub("[^%d]","")
+        local current = tonumber(clean) or 0
+
+        totalMoney = current
+        totalPara:Set({Title="Total Money",Content=formatRupiah(totalMoney)})
+
+        if current > lastMoney then
+            earned += (current - lastMoney)
+        end
+        lastMoney = current
+
+        earnPara:Set({Title="Total Earning",Content=formatRupiah(earned)})
+
+        local perHour = (earned / (tick()-startTime)) * 3600
+        incomePara:Set({Title="Income / Hour",Content=formatRupiah(perHour)})
+    end
+
+    task.spawn(function()
+        while true do
+            task.wait(1)
+            pcall(updateMoney)
+        end
+    end)
+
+    --====================================================
+    -- ⚙️ CONFIG TAB
+    --====================================================
+
+    local ConfigTab = Window:CreateTab("Configuration","settings")
+
+    local teleportTime = 18
+    local recallTime = 0.3
+
+    ConfigTab:CreateInput({
+        Name="Teleport Time",
+        CurrentValue="18",
+        Callback=function(v)
+            teleportTime = tonumber(v) or 18
+        end
+    })
+
+    ConfigTab:CreateInput({
+        Name="Recall Time",
+        CurrentValue="0.3",
+        Callback=function(v)
+            recallTime = tonumber(v) or 0.3
+        end
+    })
+
+    --====================================================
+    -- ⚡ REDUCTION LAG
+    --====================================================
+
+    ConfigTab:CreateToggle({
+        Name="Reduction Lag",
+        CurrentValue=false,
+        Callback=function(state)
+            Lighting.GlobalShadows = not state
+            for _,v in ipairs(Workspace:GetDescendants()) do
+                if v:IsA("ParticleEmitter") then
+                    v.Enabled = not state
+                end
+            end
+        end
+    })
+
+end
+
+--====================================================
+-- 🔎 VERIFY BUTTON
+--====================================================
+
+Button.MouseButton1Click:Connect(function()
+    if isValidKey(TextBox.Text) then
+        Button.Text = "Verified ✓"
+        Button.BackgroundColor3 = Color3.fromRGB(0,200,120)
+        task.wait(0.5)
+        LoadHub()
+    else
+        TextBox.Text = ""
+        TextBox.PlaceholderText = "Invalid Key ❌"
+    end
+end)

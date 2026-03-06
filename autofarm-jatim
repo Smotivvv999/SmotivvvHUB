@@ -1,490 +1,1017 @@
+-- Load Rayfield
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
--- =========================================
--- 🔐 ALLGOODSTORE PREMIUM HUB (COMBINED SYSTEM)
--- =========================================
+local Window = Rayfield:CreateWindow({
+   Name = "allgoodstore25_hub || premium [only]",
+   Icon = 0,
+   LoadingTitle = "loading...",
+   LoadingSubtitle = "by all anak manizzz",
+   ShowText = "Rayfield",
+   Theme = "Default",
+   ToggleUIKeybind = "K",
+   DisableRayfieldPrompts = false,
+   DisableBuildWarnings = false,
+   ConfigurationSaving = {
+      Enabled = true,
+      FolderName = nil,
+      FileName = "Big Hub"
+   },
+})
 
-local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
-local Lighting = game:GetService("Lighting")
-local Workspace = game:GetService("Workspace")
-local LocalPlayer = Players.LocalPlayer
+local Tab = Window:CreateTab("Stats", "trending-up")
+local Section = Tab:CreateSection("Farm Stats")
 
--- =============================
--- 🔑 KEY SYSTEM CONFIG
--- =============================
+-- Simpan referensi ke paragraph untuk update realtime
+local AutofarmStatsPara = Tab:CreateParagraph({Title = "Autofarm Stats", Content = "Idle"})
+local WaitingTeleportPara = Tab:CreateParagraph({Title = "Waiting Teleport", Content = "Not waiting"})
+local ElapsedTimePara = Tab:CreateParagraph({Title = "Elapsed Time", Content = "00:00:00"})
 
-local RAW_KEY_URL = "https://raw.githubusercontent.com/Smotivvv999/SmotivvvHUB/main/keys.txt"
+local Section = Tab:CreateSection("Earn Stats")  
 
-local validKeys = {
-    "allgoodstore_buyer1001", "allgoodstore_buyer1002", "allgoodstore_buyer1003",
-    "allgoodstore_buyer1004", "allgoodstore_buyer1005", "allgoodstore_buyer1006",
-    "allgoodstore_buyer1007", "allgoodstore_buyer1008", "allgoodstore_buyer1009",
-    "allgoodstore_buyer1010", "allgoodstore_buyer1011", "allgoodstore_buyer1012",
-    "allgoodstore_buyer1013", "allgoodstore_buyer1014", "allgoodstore_buyer1015",
-    "allgoodstore_buyer1016", "allgoodstore_buyer1017", "allgoodstore_buyer1018",
-    "allgoodstore_buyer1019", "allgoodstore_buyer1020", "allgoodstore_buyer1021",
-    "allgoodstore_buyer1022", "allgoodstore_buyer1023", "allgoodstore_buyer1024",
-    "allgoodstore_buyer1025"
-}
+-- Fungsi untuk format Rupiah
+local function formatRupiah(amount)
+    if not amount or amount == 0 then return "Rp 0" end
+    local formatted = string.format("%.0f", amount)
+    formatted = formatted:reverse():gsub("(%d%d%d)", "%1."):reverse()
+    return "Rp " .. formatted:gsub("^,", "")
+end
 
--- =============================
--- 🔍 KEY VALIDATION
--- =============================
-
-local function fetchKeys()
-    local success, result = pcall(function()
-        return game:HttpGet(RAW_KEY_URL)
-    end)
-    
-    if success and result and result ~= "" then
-        for key in string.gmatch(result, "[^\r\n]+") do
-            key = key:gsub("%s+", "")
-            if key ~= "" then
-                table.insert(validKeys, key)
-            end
-        end
+-- Fungsi untuk format singkat (XXXXX seperti 1.2M, 500K, dll)
+local function formatShort(amount)
+    if not amount or amount == 0 then return "0" end
+    if amount >= 1000000000 then
+        return string.format("%.1fB", amount / 1000000000)
+    elseif amount >= 1000000 then
+        return string.format("%.1fM", amount / 1000000)
+    elseif amount >= 1000 then
+        return string.format("%.1fK", amount / 1000)
     else
-        warn("⚠️ Failed to fetch GitHub keys. Using backup keys.")
+        return tostring(amount)
     end
 end
 
-local function isValidKey(input)
-    input = tostring(input):gsub("%s+", "")
-    for _, key in ipairs(validKeys) do
-        if input == key then
-            return true
+-- Variabel untuk tracking stats
+local totalMoney = 0
+local moneyReceived = 0
+local moneyIncome = 0
+local startTime = tick()
+local lastMoney = 0
+
+-- Paragraf untuk stats
+local totalMoneyPara = Tab:CreateParagraph({Title="Total Money", Content="Rp 0"})
+local moneyReceivedPara = Tab:CreateParagraph({Title="Total Earning", Content="Rp 0"})  -- Total Earning
+local moneyIncomePara = Tab:CreateParagraph({Title="Money Received", Content="0 / Hour"})  -- Money Received per Hour dalam format singkat
+
+-- Fungsi update stats
+local function updateStats()
+    local currentMoneyText = game:GetService("Players").LocalPlayer.PlayerGui.Main.Container.Hub.CashFrame.Frame.TextLabel.Text
+    
+    -- Parsing lebih robust: hapus semua non-digit
+    local cleanedText = currentMoneyText:gsub("[^%d]", "")  -- Hapus semua karakter non-digit
+    local currentMoney = tonumber(cleanedText) or 0
+    
+    totalMoney = currentMoney
+    totalMoneyPara:Set({Title="Total Money", Content=formatRupiah(totalMoney)})
+    
+    -- Hitung money received (selisih positif)
+    if currentMoney > lastMoney then
+        moneyReceived = moneyReceived + (currentMoney - lastMoney)
+    end
+    lastMoney = currentMoney
+    moneyReceivedPara:Set({Title="Total Earning", Content=formatRupiah(moneyReceived)})
+    
+    -- Hitung money income (per hour) dalam format singkat
+    local elapsedTime = tick() - startTime
+    if elapsedTime > 0 then
+        moneyIncome = (moneyReceived / elapsedTime) * 3600  -- Konversi ke per jam
+    end
+    moneyIncomePara:Set({Title="Money Received", Content=formatShort(moneyIncome) .. " / Hour"})
+end
+
+-- Update stats awal
+updateStats()
+
+-- Connect ke perubahan money
+game:GetService("Players").LocalPlayer.PlayerGui.Main.Container.Hub.CashFrame.Frame.TextLabel.Changed:Connect(function()
+    updateStats()
+end)
+
+-- Loop update stats setiap detik untuk income yang akurat
+task.spawn(function()
+    while true do
+        task.wait(1)
+        updateStats()
+    end
+end)
+
+local Tab = Window:CreateTab("Configuration", "settings")
+local Section = Tab:CreateSection("Set tele & recall job")
+
+local Paragraph = Tab:CreateParagraph({
+    Title = "Set Config Working",
+    Content = [[
+Teleport: 18 detik
+Recall Job: 0.3
+]]
+})
+
+-- Variabel untuk menyimpan nilai dari input
+local recallJobTime = 0.3
+local teleportTime = 18
+
+local Input = Tab:CreateInput({
+   Name = "Teleport",
+   CurrentValue = "18",
+   PlaceholderText = "Input teleport time in seconds",
+   RemoveTextAfterFocusLost = false,
+   Flag = "TeleportInput",
+   Callback = function(Text)
+       teleportTime = tonumber(Text) or 20
+       print("Teleport time set to: " .. teleportTime)
+   end,
+})
+
+local Input = Tab:CreateInput({
+   Name = "Recall job",
+   CurrentValue = "0.5",
+   PlaceholderText = "Input recall job time in seconds",
+   RemoveTextAfterFocusLost = false,
+   Flag = "RecallJobInput",
+   Callback = function(Text)
+       recallJobTime = tonumber(Text) or 0.3
+       print("Recall job time set to: " .. recallJobTime)
+   end,
+})
+
+-- ===============================
+-- CONFIG AUTOFARM SYSTEM (FIXED)
+-- ===============================
+
+local Section = Tab:CreateSection("Config Autofarm System")
+
+-- ===== STATE =====
+local reductionLagActive = false
+local TaskWatchdogEnabled = false
+local AutoCleanupEnabled = false
+local AutoCleanupRunning = false
+
+local WatchedTasks = {}
+local Resources = {
+    Connections = {},
+    Instances = {}
+}
+
+-- ===============================
+-- REDUCTION LAG SYSTEM
+-- ===============================
+local function applyReductionLag(enable)
+    reductionLagActive = enable
+    local Lighting = game:GetService("Lighting")
+    local Workspace = game:GetService("Workspace")
+
+    if enable then
+        print("⚡ Reduction Lag System: ENABLED")
+
+        pcall(function()
+            Lighting.GlobalShadows = false
+            Lighting.FogEnd = 100000
+            Lighting.Brightness = 2
+        end)
+
+        for _, v in ipairs(Workspace:GetDescendants()) do
+            if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Fire") then
+                v.Enabled = false
+            elseif v:IsA("Decal") or v:IsA("Texture") then
+                v.Transparency = 1
+            end
         end
+    else
+        print("⚡ Reduction Lag System: DISABLED")
+
+        pcall(function()
+            Lighting.GlobalShadows = true
+            Lighting.Brightness = 1
+            Lighting.FogEnd = 100000
+        end)
+
+        for _, v in ipairs(Workspace:GetDescendants()) do
+            if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Fire") then
+                v.Enabled = true
+            elseif v:IsA("Decal") or v:IsA("Texture") then
+                v.Transparency = 0
+            end
+        end
+    end
+end
+
+-- ===============================
+-- TASK WATCHDOG SYSTEM
+-- ===============================
+local function AddTask(taskName, taskFunc)
+    WatchedTasks[taskName] = {
+        func = taskFunc,
+        running = false
+    }
+end
+
+local function StartTaskWatchdog()
+    task.spawn(function()
+        while TaskWatchdogEnabled do
+            for name, taskData in pairs(WatchedTasks) do
+                if not taskData.running then
+                    taskData.running = true
+                    task.spawn(function()
+                        local success, err = pcall(taskData.func)
+                        if not success then
+                            warn("[Watchdog] Task crashed:", name, err)
+                        end
+                        taskData.running = false
+                    end)
+                end
+            end
+            task.wait(2)
+        end
+    end)
+end
+
+-- ===============================
+-- RESOURCE TRACKING
+-- ===============================
+local function TrackConnection(conn)
+    table.insert(Resources.Connections, conn)
+end
+
+local function TrackInstance(inst)
+    table.insert(Resources.Instances, inst)
+end
+
+local function CleanupResources()
+    for _, conn in ipairs(Resources.Connections) do
+        if conn then
+            pcall(function() conn:Disconnect() end)
+        end
+    end
+    Resources.Connections = {}
+
+    for _, inst in ipairs(Resources.Instances) do
+        if inst and inst.Destroy then
+            pcall(function() inst:Destroy() end)
+        end
+    end
+    Resources.Instances = {}
+
+    print("[Cleanup] Resources cleaned")
+end
+
+-- ===============================
+-- AUTO CLEANUP SYSTEM (ANTI LOOP)
+-- ===============================
+local function StartAutoCleanup()
+    if AutoCleanupRunning then return end
+    AutoCleanupRunning = true
+
+    task.spawn(function()
+        while AutoCleanupEnabled do
+            CleanupResources()
+            task.wait(10)
+        end
+        AutoCleanupRunning = false
+    end)
+end
+
+-- ===============================
+-- TOGGLES (RAYFIELD VALID)
+-- ===============================
+
+Tab:CreateToggle({
+    Name = "Reduction Lag System",
+    CurrentValue = false,
+    Flag = "ReductionLagToggle",
+    Callback = function(Value)
+        applyReductionLag(Value)
+    end,
+})
+
+Tab:CreateToggle({
+    Name = "Task Watchdog System",
+    CurrentValue = false,
+    Flag = "TaskWatchdogToggle",
+    Callback = function(Value)
+        TaskWatchdogEnabled = Value
+        print("Task Watchdog:", Value)
+
+        if Value then
+            StartTaskWatchdog()
+        end
+    end,
+})
+
+Tab:CreateToggle({
+    Name = "Auto Cleanup System",
+    CurrentValue = false,
+    Flag = "AutoCleanupToggle",
+    Callback = function(Value)
+        AutoCleanupEnabled = Value
+        print("Auto Cleanup:", Value)
+
+        if Value then
+            StartAutoCleanup()
+        end
+    end,
+})
+
+local Tab = Window:CreateTab("Autofarm", "plane-takeoff")
+local Section = Tab:CreateSection("Executor Stats")
+
+-- Fungsi untuk mendeteksi executor dengan lebih banyak checks
+local function getExecutor()
+    local executor = "Unknown"
+    local version = ""
+    
+    -- Coba identifyexecutor() terlebih dahulu
+    if identifyexecutor then
+        pcall(function()
+            executor = identifyexecutor()
+        end)
+    end
+    
+    -- Jika masih unknown, cek variabel global
+    if executor == "Unknown" then
+        if syn then
+            executor = "Delta"
+            if syn.version then version = " v" .. syn.version end
+        elseif krnl then
+            executor = "arceus X"
+        elseif fluxus then
+            executor = "Fluxus Z"
+        elseif scriptware then
+            executor = "codex"
+        elseif xeno then
+            executor = "Xeno"
+            if xeno.version then version = " v" .. xeno.version end
+        elseif getgenv then
+            -- Jika getgenv ada tapi tidak spesifik, coba deteksi lain
+            executor = "Unknown (getgenv detected)"
+        elseif hookfunction then
+            executor = "Unknown (hookfunction detected)"
+        end
+    end
+    
+    -- Gabungkan executor dan versi
+    if version ~= "" then
+        return executor .. version
+    else
+        return executor
+    end
+end
+
+local Paragraph = Tab:CreateParagraph({Title = "Executor", Content = getExecutor()})
+
+local Section = Tab:CreateSection("Autofarm [CAR DRIVING INDONESIA]")
+
+-- Variabel untuk webhook URL
+local webhookURL = ""
+
+-- Fungsi untuk validasi URL webhook Discord
+local function isValidDiscordWebhook(url)
+    -- Cek apakah URL dimulai dengan https://discord.com/api/webhooks/ atau https://discordapp.com/api/webhooks/
+    if string.match(url, "^https://discord%.com/api/webhooks/%d+/%w+$") or string.match(url, "^https://discordapp%.com/api/webhooks/%d+/%w+$") then
+        return true
     end
     return false
 end
 
--- =============================
--- 🎨 KEY UI SYSTEM
--- =============================
+local Input = Tab:CreateInput({
+    Name = "Webhooks url",
+    CurrentValue = "",
+    PlaceholderText = "Paste Discord Webhook URL",
+    RemoveTextAfterFocusLost = false,
+    Flag = "WebhookInput",
+    Callback = function(Text)
+        local url = tostring(Text):gsub("%s+", "")
 
-local function createKeyUI()
-    local ScreenGui = Instance.new("ScreenGui")
-    ScreenGui.Name = "AllGoodStoreKeyUI"
-    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-    ScreenGui.ResetOnSpawn = false
+        -- VALIDASI PALING AMAN (executor proof)
+        if url:find("discord") and url:find("/api/webhooks/") then
+            webhookURL = url
+            print("Webhook URL SET:", webhookURL)
+        else
+            webhookURL = ""
+            warn("Invalid Discord Webhook URL")
+        end
+    end,
+})
 
-    local Main = Instance.new("Frame")
-    Main.Parent = ScreenGui
-    Main.Size = UDim2.new(0, 430, 0, 250)
-    Main.Position = UDim2.new(0.5, -215, 0.5, -125)
-    Main.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-    Main.BorderSizePixel = 0
-    Main.BackgroundTransparency = 1
+-- Custom username langsung set ke "SERAAA _GACOR#1" tanpa input
+local customUsername = "SERAAA _GACOR#1"
 
-    Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 20)
+local Section = Tab:CreateSection("Autofarm [CAR DRIVING INDONESIA]")
 
-    local stroke = Instance.new("UIStroke", Main)
-    stroke.Color = Color3.fromRGB(70, 70, 75)
-    stroke.Thickness = 1
+local Player = game.Players.LocalPlayer
+local CarName = Player.Name .. "sCar"
+local TweenService = game:GetService("TweenService")
+local Vim = game:GetService("VirtualInputManager")
+local HttpService = game:GetService("HttpService")
 
-    TweenService:Create(Main, TweenInfo.new(0.4), {BackgroundTransparency = 0}):Play()
+-- Variabel untuk autofarm
+local autofarmActive = false
+local autofarmStartTime = 0
 
-    -- Title
-    local Title = Instance.new("TextLabel")
-    Title.Parent = Main
-    Title.Size = UDim2.new(1, 0, 0, 60)
-    Title.BackgroundTransparency = 1
-    Title.Text = "allgoodstore25 premium access"
-    Title.TextColor3 = Color3.fromRGB(240, 240, 240)
-    Title.Font = Enum.Font.GothamSemibold
-    Title.TextSize = 24
+-- Variabel untuk layar hitam
+local blackScreenGui = nil
 
-    -- Subtitle
-    local Sub = Instance.new("TextLabel")
-    Sub.Parent = Main
-    Sub.Size = UDim2.new(1, 0, 0, 30)
-    Sub.Position = UDim2.new(0, 0, 0.25, 0)
-    Sub.BackgroundTransparency = 1
-    Sub.Text = "enter your product key to whatsappp"
-    Sub.TextColor3 = Color3.fromRGB(160, 160, 165)
-    Sub.Font = Enum.Font.Gotham
-    Sub.TextSize = 18
-
-    -- TextBox
-    local TextBox = Instance.new("TextBox")
-    TextBox.Parent = Main
-    TextBox.Size = UDim2.new(0.85, 0, 0, 45)
-    TextBox.Position = UDim2.new(0.075, 0, 0.5, 0)
-    TextBox.PlaceholderText = "Enter your key here..."
-    TextBox.Text = ""
-    TextBox.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
-    TextBox.TextColor3 = Color3.new(1, 1, 1)
-    TextBox.Font = Enum.Font.Gotham
-    TextBox.TextSize = 18
-    TextBox.ClearTextOnFocus = false
-    Instance.new("UICorner", TextBox).CornerRadius = UDim.new(0, 12)
-
-    -- Button
-    local Button = Instance.new("TextButton")
-    Button.Parent = Main
-    Button.Size = UDim2.new(0.85, 0, 0, 45)
-    Button.Position = UDim2.new(0.075, 0, 0.75, 0)
-    Button.Text = "Verify Key"
-    Button.TextColor3 = Color3.new(1, 1, 1)
-    Button.Font = Enum.Font.GothamSemibold
-    Button.TextSize = 20
-    Button.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
-    Instance.new("UICorner", Button).CornerRadius = UDim.new(0, 12)
-
-    -- Hover effects
-    Button.MouseEnter:Connect(function()
-        TweenService:Create(Button, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(0, 150, 255)}):Play()
-    end)
-
-    Button.MouseLeave:Connect(function()
-        TweenService:Create(Button, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(0, 120, 215)}):Play()
-    end)
-
-    return ScreenGui, Main, Button, TextBox
+local function toggleBlackScreen(enable)
+    if enable then
+        if not blackScreenGui then
+            blackScreenGui = Instance.new("ScreenGui")
+            blackScreenGui.Name = "BlackScreen"
+            blackScreenGui.ResetOnSpawn = false
+            blackScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global  -- Ubah ke Global untuk prioritas tinggi
+            blackScreenGui.IgnoreGuiInset = true  -- Tambahkan ini untuk menutupi inset seperti top bar
+            
+            local frame = Instance.new("Frame")
+            frame.Size = UDim2.new(1, 0, 1, 0)
+            frame.Position = UDim2.new(0, 0, 0, 0)
+            frame.BackgroundColor3 = Color3.new(0, 0, 0)
+            frame.BackgroundTransparency = 0
+            frame.BorderSizePixel = 0
+            frame.Parent = blackScreenGui
+            
+            blackScreenGui.Parent = Player.PlayerGui
+        end
+    else
+        if blackScreenGui then
+            blackScreenGui:Destroy()
+            blackScreenGui = nil
+        end
+    end
 end
 
--- =============================
--- 🚀 MAIN HUB SYSTEM
--- =============================
+-- Fungsi untuk spoof username (mengubah display name di UI atau webhook)
+-- Catatan: Username asli tidak bisa diubah, tapi kita gunakan customUsername untuk display
+local originalName = Player.Name
+local function spoofUsername(enable)
+    if enable then
+        -- Untuk webhook, kita gunakan customUsername
+        -- Untuk UI, jika ada display name, ubah (tapi Roblox tidak punya built-in display name)
+        -- Ini hanya untuk internal, username asli tetap tersembunyi di webhook
+        print("Username spoofed to: " .. customUsername .. " (original hidden)")
+    else
+        print("Username reset to original")
+    end
+end
 
-local function loadMainHub()
-    local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
-    
-    local Window = Rayfield:CreateWindow({
-        Name = "allgoodstore25_hub || premium [only]",
-        Icon = 0,
-        LoadingTitle = "loading...",
-        LoadingSubtitle = "by all anak manizzz",
-        ShowText = "Rayfield",
-        Theme = "Default",
-        ToggleUIKeybind = "K",
-        DisableRayfieldPrompts = false,
-        DisableBuildWarnings = false,
-        ConfigurationSaving = {
-            Enabled = true,
-            FolderName = "allgoodstore25_hub",
-            FileName = "HubConfig"
-        }
-    })
+-- Fungsi untuk format waktu elapsed (HH:MM:SS)
+local function formatElapsedTime(seconds)
+    local hours = math.floor(seconds / 3600)
+    local minutes = math.floor((seconds % 3600) / 60)
+    local secs = math.floor(seconds % 60)
+    return string.format("%02d:%02d:%02d", hours, minutes, secs)
+end
 
-    -- =========================
-    -- STATS TAB
-    -- =========================
-    local StatsTab = Window:CreateTab("Stats", "trending-up")
-    
-    -- Autofarm Section
-    local AutofarmSection = StatsTab:CreateSection("Farm Stats")
-    local AutofarmStatsPara = StatsTab:CreateParagraph({Title = "Autofarm Stats", Content = "Idle"})
-    local WaitingTeleportPara = StatsTab:CreateParagraph({Title = "Waiting Teleport", Content = "Not waiting"})
-    local ElapsedTimePara = StatsTab:CreateParagraph({Title = "Elapsed Time", Content = "00:00:00"})
+-- Fungsi update elapsed time
+local function updateElapsedTime()
+    if autofarmActive then
+        local elapsed = tick() - autofarmStartTime
+        ElapsedTimePara:Set({Title = "Elapsed Time", Content = formatElapsedTime(elapsed)})
+    else
+        ElapsedTimePara:Set({Title = "Elapsed Time", Content = "00:00:00"})
+    end
+end
 
-    -- Earn Stats Section
-    local EarnSection = StatsTab:CreateSection("Earn Stats")
-    
-    -- Format functions
-    local function formatRupiah(amount)
-        if not amount or amount == 0 then return "Rp 0" end
-        local formatted = string.format("%.0f", amount)
-        formatted = formatted:reverse():gsub("(%d%d%d)", "%1."):reverse()
-        return "Rp " .. formatted:gsub("^,", "")
+local function sendWebhook(url, statusFarm, username, totalMoney, totalEarnings, elapsedTime)
+    if not url or url == "" then return end
+
+    local httpRequest =
+        (syn and syn.request) or
+        (http_request) or
+        (request)
+
+    if not httpRequest then
+        warn("HTTP request function not supported by executor")
+        return
     end
 
-    local function formatShort(amount)
-        if not amount or amount == 0 then return "0" end
-        if amount >= 1000000000 then
-            return string.format("%.1fB", amount / 1000000000)
-        elseif amount >= 1000000 then
-            return string.format("%.1fM", amount / 1000000)
-        elseif amount >= 1000 then
-            return string.format("%.1fK", amount / 1000)
-        else
-            return tostring(amount)
-        end
-    end
+    -- Gunakan customUsername jika autofarm aktif
+    local displayUsername = autofarmActive and customUsername or username
 
-    -- Stats variables
-    local totalMoney = 0
-    local moneyReceived = 0
-    local moneyIncome = 0
-    local startTime = tick()
-    local lastMoney = 0
+    -- Warna embed: hijau untuk sukses, merah untuk gagal
+    local color = statusFarm == "Sukses" and 0x00FF00 or 0xFF0000
 
-    local totalMoneyPara = StatsTab:CreateParagraph({Title = "Total Money", Content = "Rp 0"})
-    local moneyReceivedPara = StatsTab:CreateParagraph({Title = "Total Earning", Content = "Rp 0"})
-    local moneyIncomePara = StatsTab:CreateParagraph({Title = "Money Received", Content = "0 / Hour"})
-
-    -- Update stats function
-    local function updateStats()
-        local success, result = pcall(function()
-            local cashFrame = LocalPlayer.PlayerGui.Main.Container.Hub.CashFrame.Frame.TextLabel
-            local currentMoneyText = cashFrame.Text
-            
-            local cleanedText = currentMoneyText:gsub("[^%d]", "")
-            local currentMoney = tonumber(cleanedText) or 0
-            
-            totalMoney = currentMoney
-            totalMoneyPara:Set({Title = "Total Money", Content = formatRupiah(totalMoney)})
-            
-            if currentMoney > lastMoney then
-                moneyReceived = moneyReceived + (currentMoney - lastMoney)
-            end
-            lastMoney = currentMoney
-            
-            moneyReceivedPara:Set({Title = "Total Earning", Content = formatRupiah(moneyReceived)})
-            
-            local elapsedTime = tick() - startTime
-            if elapsedTime > 0 then
-                moneyIncome = (moneyReceived / elapsedTime) * 3600
-            end
-            moneyIncomePara:Set({Title = "Money Received", Content = formatShort(moneyIncome) .. " / Hour"})
-        end)
-        
-        if not success then
-            warn("Stats update error:", result)
-        end
-    end
-
-    -- Initial update and connections
-    updateStats()
-    
-    task.spawn(function()
-        while true do
-            task.wait(1)
-            updateStats()
-        end
-    end)
-
-    -- =========================
-    -- CONFIGURATION TAB
-    -- =========================
-    local ConfigTab = Window:CreateTab("Configuration", "settings")
-    local ConfigSection = ConfigTab:CreateSection("Set tele & recall job")
-
-    ConfigTab:CreateParagraph({
-        Title = "Set Config Working",
-        Content = "Teleport: 18 detik\nRecall Job: 0.3"
-    })
-
-    local recallJobTime = 0.3
-    local teleportTime = 18
-
-    ConfigTab:CreateInput({
-        Name = "Teleport",
-        CurrentValue = "18",
-        PlaceholderText = "Input teleport time in seconds",
-        RemoveTextAfterFocusLost = false,
-        Flag = "TeleportInput",
-        Callback = function(Text)
-            teleportTime = tonumber(Text) or 18
-            print("Teleport time set to:", teleportTime)
-        end
-    })
-
-    ConfigTab:CreateInput({
-        Name = "Recall job",
-        CurrentValue = "0.5",
-        PlaceholderText = "Input recall job time in seconds",
-        RemoveTextAfterFocusLost = false,
-        Flag = "RecallJobInput",
-        Callback = function(Text)
-            recallJobTime = tonumber(Text) or 0.3
-            print("Recall job time set to:", recallJobTime)
-        end
-    })
-
-    -- =========================
-    -- AUTOFARM SYSTEM
-    -- =========================
-    local AutofarmSection = ConfigTab:CreateSection("Config Autofarm System")
-
-    -- State variables
-    local reductionLagActive = false
-    local TaskWatchdogEnabled = false
-    local AutoCleanupEnabled = false
-    local AutoCleanupRunning = false
-
-    local WatchedTasks = {}
-    local Resources = {
-        Connections = {},
-        Instances = {}
+    local payload = {
+        username = "BOT S3RA NEW ERA #1",
+        avatar_url = "https://i.imgur.com/rdm3W9t.png", -- avatar bot
+        embeds = {{
+            title = "👑 CAR DRIVING INDONESIA",
+            description = "Autofarm job telah berhasil diselesaikan!",
+            color = color,
+            fields = {
+                { name = "📝 Status Farm", value = tostring(statusFarm), inline = true },
+                { name = "👤 Username", value = tostring(displayUsername), inline = true },
+                { name = "💰 Total Money", value = tostring(totalMoney), inline = true },
+                { name = "💵 Total Earnings", value = tostring(totalEarnings), inline = true },
+                { name = "⏱️ Elapsed Time", value = tostring(elapsedTime), inline = true }
+            },
+            footer = {
+                text = "Car Driving Indonesia | Autofarm",
+                icon_url = "https://i.imgur.com/rdm3W9t.png"
+            },
+            timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
+        }}
     }
 
-    -- Reduction Lag System
-    local function applyReductionLag(enable)
-        reductionLagActive = enable
-        
-        if enable then
-            print("⚡ Reduction Lag System: ENABLED")
-            pcall(function()
-                Lighting.GlobalShadows = false
-                Lighting.FogEnd = 100000
-                Lighting.Brightness = 2
-            end)
+    local success, err = pcall(function()
+        httpRequest({
+            Url = url,
+            Method = "POST",
+            Headers = {
+                ["Content-Type"] = "application/json"
+            },
+            Body = HttpService:JSONEncode(payload)
+        })
+    end)
 
-            for _, v in ipairs(Workspace:GetDescendants()) do
-                if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Fire") then
-                    v.Enabled = false
-                elseif v:IsA("Decal") or v:IsA("Texture") then
-                    v.Transparency = 1
-                end
-            end
-        else
-            print("⚡ Reduction Lag System: DISABLED")
-            pcall(function()
-                Lighting.GlobalShadows = true
-                Lighting.Brightness = 1
-                Lighting.FogEnd = 100000
-            end)
-
-            for _, v in ipairs(Workspace:GetDescendants()) do
-                if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Fire") then
-                    v.Enabled = true
-                elseif v:IsA("Decal") or v:IsA("Texture") then
-                    v.Transparency = 0
-                end
-            end
-        end
+    if not success then
+        warn("Webhook failed:", err)
     end
-
-    -- Task Watchdog System
-    local function AddTask(taskName, taskFunc)
-        WatchedTasks[taskName] = {
-            func = taskFunc,
-            running = false
-        }
-    end
-
-    local function StartTaskWatchdog()
-        task.spawn(function()
-            while TaskWatchdogEnabled do
-                for name, taskData in pairs(WatchedTasks) do
-                    if not taskData.running then
-                        taskData.running = true
-                        task.spawn(function()
-                            local success, err = pcall(taskData.func)
-                            if not success then
-                                warn("[Watchdog] Task crashed:", name, err)
-                            end
-                            taskData.running = false
-                        end)
-                    end
-                end
-                task.wait(2)
-            end
-        end)
-    end
-
-    -- Resource Tracking
-    local function TrackConnection(conn)
-        table.insert(Resources.Connections, conn)
-    end
-
-    local function TrackInstance(inst)
-        table.insert(Resources.Instances, inst)
-    end
-
-    local function CleanupResources()
-        for _, conn in ipairs(Resources.Connections) do
-            if conn then
-                pcall(function() conn:Disconnect() end)
-            end
-        end
-        Resources.Connections = {}
-
-        for _, inst in ipairs(Resources.Instances) do
-            if inst and inst.Destroy then
-                pcall(function() inst:Destroy() end)
-            end
-        end
-        Resources.Instances = {}
-        
-        print("[Cleanup] Resources cleaned")
-    end
-
-    -- Auto Cleanup System
-    local function StartAutoCleanup()
-        if AutoCleanupRunning then return end
-        AutoCleanupRunning = true
-        
-        task.spawn(function()
-            while AutoCleanupEnabled do
-                task.wait(60) -- Cleanup every 60 seconds
-                if AutoCleanupEnabled then
-                    CleanupResources()
-                end
-            end
-            AutoCleanupRunning = false
-        end)
-    end
-
-    -- UI Toggles for Autofarm Systems
-    ConfigTab:CreateToggle({
-        Name = "Reduction Lag",
-        CurrentValue = false,
-        Flag = "ReductionLag",
-        Callback = function(Value)
-            applyReductionLag(Value)
-        end
-    })
-
-    ConfigTab:CreateToggle({
-        Name = "Task Watchdog",
-        CurrentValue = false,
-        Flag = "TaskWatchdog",
-        Callback = function(Value)
-            TaskWatchdogEnabled = Value
-            if Value then
-                StartTaskWatchdog()
-            end
-        end
-    })
-
-    ConfigTab:CreateToggle({
-        Name = "Auto Cleanup",
-        CurrentValue = false,
-        Flag = "AutoCleanup",
-        Callback = function(Value)
-            AutoCleanupEnabled = Value
-            if Value then
-                StartAutoCleanup()
-            end
-        end
-    })
-
-    print("✅ Main Hub Loaded Successfully")
 end
 
--- =============================
--- 🎯 INITIALIZATION
--- =============================
+-- Fungsi tween teleport ke area kerja
+function TweenToJob()
+    if not autofarmActive then return end
+    AutofarmStatsPara:Set({Title = "Autofarm Stats", Content = "🚚 Sedang Menuju Lokasi..."})
+    pcall(function()
+        game.ReplicatedStorage.NetworkContainer.RemoteEvents.Job:FireServer("Truck")
+        
+        local Root = Player.Character:FindFirstChild("HumanoidRootPart")
+        if not Root then return end
 
-local function initialize()
-    fetchKeys()
-    local ScreenGui, MainFrame, Button, TextBox = createKeyUI()
-    
-    Button.MouseButton1Click:Connect(function()
-        if isValidKey(TextBox.Text) then
-            -- Success animation
-            Button.Text = "Verified ✓"
-            Button.BackgroundColor3 = Color3.fromRGB(0, 200, 120)
-            
-            task.wait(0.6)
-            
-            TweenService:Create(MainFrame, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
-            task.wait(0.3)
-            
-            ScreenGui:Destroy()
-            loadMainHub()
-        else
-            -- Error animation
-            TextBox.Text = ""
-            TextBox.PlaceholderText = "Invalid Key ❌"
-            TweenService:Create(TextBox, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(50, 20, 20)}):Play()
-            task.wait(0.2)
-            TweenService:Create(TextBox, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(35, 35, 40)}):Play()
+        TweenService:Create(Root, TweenInfo.new(1.0, Enum.EasingStyle.Quad), {
+            CFrame = Root.CFrame + Vector3.new(0, 100, 0)
+        }):Play()
+
+        task.wait(1.0)
+        TweenService:Create(Root, TweenInfo.new(2.0, Enum.EasingStyle.Quad), {
+            CFrame = CFrame.new(34938.02, 134.51, -54577.36)
+        }):Play()
+
+        task.wait(2.0)
+        TweenService:Create(Root, TweenInfo.new(2.0, Enum.EasingStyle.Exponential), {
+            CFrame = CFrame.new(34938.02, 134.51, -54577.36)
+        }):Play()
+
+        task.wait(2.0)
+        Root.Anchored = true
+        task.wait(0.8)
+        Root.Anchored = false
+    end)
+end
+
+-- Fungsi mengambil job "Truck" dengan timeout anti-stuck
+function TakingJob()
+    if not autofarmActive then return end
+    AutofarmStatsPara:Set({Title = "Autofarm Stats", Content = "📋 Mengambil Pekerjaan..."})
+    local attempts = 0
+    local maxAttempts = 50  -- Timeout after ~15 seconds (50 * 0.3)
+    repeat
+        if not autofarmActive then return end
+        attempts = attempts + 1
+        if attempts > maxAttempts then
+            warn("TakingJob stuck, skipping...")
+            return
+        end
+        pcall(function()
+            local Root = Player.Character:FindFirstChild("HumanoidRootPart")
+            local Waypoint = workspace.Etc.Waypoint:FindFirstChild("Waypoint")
+            local Label = Waypoint and Waypoint:FindFirstChild("BillboardGui") and Waypoint.BillboardGui:FindFirstChild("TextLabel")
+
+            if Root then Root.Anchored = true end
+
+            if Label and Label.Text ~= "PT CDID Cargo Malang" then
+                game.ReplicatedStorage.NetworkContainer.RemoteEvents.Job:FireServer("Truck")
+                local Prompt = workspace.Etc.Job.Truck.Starter:FindFirstChildWhichIsA("ProximityPrompt", true)
+                if Prompt then
+                    Prompt.MaxActivationDistance = 100000
+                    fireproximityprompt(Prompt)
+                end
+            end
+
+            if Root then Root.Anchored = false end
+        end)
+        task.wait(0.3)
+    until (function()
+        local Waypoint = workspace.Etc.Waypoint:FindFirstChild("Waypoint")
+        local Label = Waypoint and Waypoint:FindFirstChild("BillboardGui") and Waypoint.BillboardGui:FindFirstChild("TextLabel")
+        return Label and Label.Text == "PT CDID Cargo Malang"
+    end)()
+
+    pcall(function()
+        Player.Character.HumanoidRootPart.Anchored = false
+    end)
+end
+
+-- Fungsi spawn mobil + langsung duduk + destroy trailer dengan checks
+function SpawningTruck()
+    if not autofarmActive then return end
+    AutofarmStatsPara:Set({Title = "Autofarm Stats", Content = "🚛 Menyiapkan Truk..."})
+    pcall(function()
+        local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
+        if not Root then return end
+
+        Root.CFrame = CFrame.new(35163.45, 134.51, -54686.68)
+
+        task.wait(3.0)
+        Vim:SendKeyEvent(true, "F", false, game)
+        task.wait(0.3)
+        Vim:SendKeyEvent(false, "F", false, game)
+        task.wait(3.0)
+
+        local Car = workspace.Vehicles:FindFirstChild(CarName)
+        local Humanoid = Player.Character and Player.Character:FindFirstChild("Humanoid")
+        local Seat = Car and Car:FindFirstChild("DriveSeat")
+
+        if Humanoid and Seat then
+            pcall(function() Seat:Sit(Humanoid) end)
+            task.wait(0.8)
+            Vim:SendKeyEvent(true, "Space", false, game)
+            task.wait(0.1)
+            Vim:SendKeyEvent(false, "Space", false, game)
+        end
+
+        local Trailer = Car and Car:FindFirstChild("Trailer1")
+        if Trailer then
+            Trailer:Destroy()
+            print("Trailer destroyed to prevent interference.")
         end
     end)
 end
 
--- Start the system
-initialize()
+-- Fungsi bergerak ke destinasi dengan anti-stuck
+function MovingCharacterToDestination(Destination)
+    if not autofarmActive then return end
+    AutofarmStatsPara:Set({Title = "Autofarm Stats", Content = "📍 Menuju Titik Tujuan..."})
+    pcall(function()
+        local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
+        local Car = workspace.Vehicles:FindFirstChild(CarName)
+
+        if not (Root and Car) then return end
+
+        if not Car.PrimaryPart then
+            for _, Part in ipairs(Car:GetDescendants()) do
+                if Part:IsA("BasePart") then
+                    Car.PrimaryPart = Part
+                    break
+                end
+            end
+        end
+
+        Root.Anchored = true
+        if Car.PrimaryPart then Car.PrimaryPart.Anchored = true end
+
+        local Follow = true
+        local followThread = task.spawn(function()
+            while Follow and autofarmActive do
+                if Car.PrimaryPart and Root then
+                    local offset = (Root.Position - Car.PrimaryPart.Position).Unit * 5
+                    local newPos = Root.Position + offset
+                    Car:PivotTo(CFrame.new(newPos))
+                end
+                task.wait(0.3)
+            end
+        end)
+
+        local AboveStart = Root.CFrame + Vector3.new(0, 100, 0)
+        local AboveDest = CFrame.new(Destination.Position + Vector3.new(0, 100, 0))
+
+        local tween1 = TweenService:Create(Root, TweenInfo.new(5.0, Enum.EasingStyle.Quad), {CFrame = AboveStart})
+        tween1:Play()
+        tween1.Completed:Wait()
+
+        local tween2 = TweenService:Create(Root, TweenInfo.new(8.0, Enum.EasingStyle.Sine), {CFrame = AboveDest})
+        tween2:Play()
+        tween2.Completed:Wait()
+
+        local tween3 = TweenService:Create(Root, TweenInfo.new(6.0, Enum.EasingStyle.Exponential), {CFrame = Destination})
+        tween3:Play()
+        tween3.Completed:Wait()
+
+        Follow = false
+        task.wait()
+
+        if Car.PrimaryPart then Car.PrimaryPart.Anchored = false end
+        Root.Anchored = false
+    end)
+end
+
+function CountdownTeleport(seconds)
+    if not autofarmActive then return end
+    WaitingTeleportPara:Set({Title = "⏳ Menunggu Teleport...", Content = "Teleporting in " .. seconds .. " seconds..."})
+    for i = seconds, 1, -1 do
+        if not autofarmActive then return end
+        WaitingTeleportPara:Set({Title = "Waiting Teleport", Content = "Teleporting in " .. i .. " seconds..."})
+        task.wait(1)
+    end
+    WaitingTeleportPara:Set({Title = "Waiting Teleport", Content = "Not waiting"})
+end
+
+function SitInVehicle()
+    if not autofarmActive then return end
+    AutofarmStatsPara:Set({Title = "Autofarm Stats", Content = "🪑 Duduk di Kendaraan..."})
+    pcall(function()
+        local Car = workspace.Vehicles:FindFirstChild(CarName)
+        local Hum = Player.Character and Player.Character:FindFirstChild("Humanoid")
+        local Seat = Car and Car:FindFirstChild("DriveSeat")
+        if Hum and Seat then pcall(function() Seat:Sit(Hum) end) end
+    end)
+end
+
+function CarTween(TargetCFrame)
+    if not autofarmActive then return end
+
+    -- Update paragraph dengan benar
+    AutofarmStatsPara:Set({Title = "Autofarm Stats", Content = "📦 Mengantar ke Tujuan..."})
+
+    local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
+    if not Root then return end
+    Root.Anchored = false
+
+    task.wait(0.5)
+
+    local Car = workspace.Vehicles:FindFirstChild(CarName)
+    if not Car then warn("Vehicle not found.") return end
+    if not Car.PrimaryPart then
+        local Seat = Car:FindFirstChild("DriveSeat")
+        if Seat then Car.PrimaryPart = Seat else return end
+    end
+
+    local Temp = Instance.new("CFrameValue", workspace)
+    Temp.Value = Car:GetPivot()
+
+    local Tween = game:GetService("TweenService"):Create(Temp, TweenInfo.new(4, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+        Value = TargetCFrame
+    })
+
+    Temp:GetPropertyChangedSignal("Value"):Connect(function()
+        Car:PivotTo(Temp.Value)
+    end)
+
+    Tween:Play()
+    Tween.Completed:Wait()
+    Temp:Destroy()
+
+    game.ReplicatedStorage.NetworkContainer.RemoteEvents.Job:FireServer("Truck")
+
+    task.wait(0.5)
+    Root.Anchored = true
+    task.wait(0.5)
+    Root.Anchored = false
+    task.wait(0.1)
+end
+
+-- =====================================
+-- AUTOFARM CORE SYSTEM STATE (FIXED)
+-- =====================================
+local AutofarmSystemsEnabled = false
+
+local Resources = {
+    Connections = {},
+    Instances = {}
+}
+
+-- ===============================
+-- MEMORY CLEANUP SYSTEM
+-- ===============================
+local function StartMemoryCleanupSystem()
+    task.spawn(function()
+        while AutofarmSystemsEnabled do
+            collectgarbage("collect")
+            task.wait(120)
+        end
+    end)
+end
+
+-- ===============================
+-- TASK & EVENT CLEANER
+-- ===============================
+local function StartTaskAndEventCleaner()
+    task.spawn(function()
+        while AutofarmSystemsEnabled do
+            for i = #Resources.Connections, 1, -1 do
+                local conn = Resources.Connections[i]
+                if not conn or not conn.Connected then
+                    table.remove(Resources.Connections, i)
+                end
+            end
+
+            for i = #Resources.Instances, 1, -1 do
+                local inst = Resources.Instances[i]
+                if not inst or inst.Parent == nil then
+                    table.remove(Resources.Instances, i)
+                end
+            end
+
+            task.wait(15)
+        end
+    end)
+end
+
+-- ===============================
+-- CLIENT MEMORY CLEANUP (SAFE)
+-- ===============================
+local function StartClientMemoryCleanupSystem()
+    task.spawn(function()
+        local player = game:GetService("Players").LocalPlayer
+
+        while AutofarmSystemsEnabled do
+            pcall(function()
+                for _, gui in ipairs(player.PlayerGui:GetChildren()) do
+                    if gui:IsA("ScreenGui")
+                        and gui.Name ~= "Rayfield"
+                        and gui.Name ~= "BlackScreen"
+                        and gui.Name ~= "Main" then -- UI GAME
+                        gui.Enabled = false
+                    end
+                end
+            end)
+
+            task.wait(30)
+        end
+    end)
+end
+
+-- ===============================
+-- START / STOP SYSTEMS
+-- ===============================
+local function StartAutofarmSystems()
+    if AutofarmSystemsEnabled then return end
+    AutofarmSystemsEnabled = true
+
+    print("🟢 Autofarm Support Systems ENABLED")
+
+    StartMemoryCleanupSystem()
+    StartTaskAndEventCleaner()
+    StartClientMemoryCleanupSystem()
+end
+
+local function StopAutofarmSystems()
+    AutofarmSystemsEnabled = false
+    print("🔴 Autofarm Support Systems DISABLED")
+end
+
+local AutofarmToggle = Tab:CreateToggle({
+    Name = "Start Autofarm",
+    CurrentValue = false,
+    Flag = "AutofarmToggle",
+    Callback = function(Value)
+        autofarmActive = Value
+        print("[Autofarm] Status:", autofarmActive)
+
+        if autofarmActive then
+
+            -- ===============================
+            -- START AUTOFARM SYSTEMS
+            -- ===============================
+            StartAutofarmSystems()
+
+            toggleBlackScreen(true)
+            spoofUsername(true)
+
+            moneyReceived = 0
+            startTime = tick()
+            autofarmStartTime = tick()
+            lastMoney = totalMoney
+            updateStats()
+
+            AutofarmStatsPara:Set({
+                Title = "Autofarm Stats",
+                Content = "Starting Autofarm..."
+            })
+
+            WaitingTeleportPara:Set({
+                Title = "Waiting Teleport",
+                Content = "Not waiting"
+            })
+
+            -- ===============================
+            -- ELAPSED TIME LOOP
+            -- ===============================
+            task.spawn(function()
+                while autofarmActive do
+                    updateElapsedTime()
+                    task.wait(1)
+                end
+            end)
+
+            -- ===============================
+            -- MAIN AUTOFARM LOOP
+            -- ===============================
+            task.spawn(function()
+
+                print("🚜 Autofarm started | Target: 6B / Hour")
+
+                while autofarmActive do
+
+                    TweenToJob()
+                    task.wait(recallJobTime)
+                    if not autofarmActive then break end
+
+                    TakingJob()
+                    task.wait(recallJobTime)
+                    if not autofarmActive then break end
+
+                    SpawningTruck()
+                    task.wait(recallJobTime)
+                    if not autofarmActive then break end
+
+                    MovingCharacterToDestination(
+                        CFrame.new(-7916.433, 385.897, 46837.558)
+                    )
+                    task.wait(recallJobTime)
+                    if not autofarmActive then break end
+
+                    CountdownTeleport(teleportTime)
+                    task.wait(recallJobTime)
+                    if not autofarmActive then break end
+
+                    SitInVehicle()
+                    task.wait(recallJobTime)
+                    if not autofarmActive then break end
+
+                    CarTween(
+                        CFrame.new(-7846.73, 386.41, 46865.10)
+                    )
+                    task.wait(recallJobTime)
+                    if not autofarmActive then break end
+
+                    sendWebhook(
+                        webhookURL,
+                        "Active",
+                        Player.Name,
+                        formatRupiah(totalMoney),
+                        formatRupiah(moneyReceived),
+                        formatElapsedTime(tick() - autofarmStartTime)
+                    )
+                end
+
+                -- CLEAN EXIT LOOP
+                print("🛑 Autofarm stopped")
+
+                AutofarmStatsPara:Set({
+                    Title = "Autofarm Stats",
+                    Content = "Idle"
+                })
+
+                WaitingTeleportPara:Set({
+                    Title = "Waiting Teleport",
+                    Content = "Not waiting"
+                })
+
+                toggleBlackScreen(false)
+                spoofUsername(false)
+
+            end)
+
+        else
+            -- ===============================
+            -- STOP AUTOFARM SYSTEMS
+            -- ===============================
+            StopAutofarmSystems()
+
+            AutofarmStatsPara:Set({
+                Title = "Autofarm Stats",
+                Content = "Idle"
+            })
+
+            WaitingTeleportPara:Set({
+                Title = "Waiting Teleport",
+                Content = "Not waiting"
+            })
+
+            toggleBlackScreen(false)
+            spoofUsername(false)
+        end
+    end,
+})
+
+-- BUTTON EXIT AUTOFARM (LEAVE GAME)
+Tab:CreateButton({
+   Name = "Exit Autofarm",
+   Callback = function()
+       print("Exit Autofarm ditekan")
+
+       -- Matikan autofarm
+       autofarmActive = false
+
+       -- Lepaskan anchor
+       pcall(function()
+           local char = Player.Character
+           if char and char:FindFirstChild("HumanoidRootPart") then
+               char.HumanoidRootPart.Anchored = false
+           end
+       end)
+
+       task.wait(0.5)
+
+       -- Keluar dari game Roblox
+       game:Shutdown()
+   end,
+})

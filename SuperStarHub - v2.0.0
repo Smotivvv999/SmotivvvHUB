@@ -1,326 +1,703 @@
-local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+-- ============================================
+-- LOAD RAYFIELD
+-- ============================================
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
-local Window = WindUI:CreateWindow({
-    Title = "SambaaHub || Special  -  v1.1.0",
-    Icon = "slack",
-    Author = "by smotivvv.",
-    Folder = "StrixHub | Premium",
-    Size = UDim2.fromOffset(580, 300),
-    Transparent = true,
-    Theme = "Dark",
+local Window = Rayfield:CreateWindow({
+   Name = "MARSKIEEE_MMX",
+   Icon = 0,
+   LoadingTitle = "loading...",
+   LoadingSubtitle = "SC QUEST",
+   ShowText = "MARSKIEEE.",
+   Theme = "Default",
+
+   ToggleUIKeybind = "K",
+
+   DisableRayfieldPrompts = false,
+   DisableBuildWarnings = false,
+
+   ConfigurationSaving = {
+      Enabled = true,
+      FolderName = nil,
+      FileName = "BigHub"
+   },
 })
 
-local Tab = Window:Tab({ Title = "Autofarm", Icon = "plane-takeoff" })
+local Tab = Window:CreateTab("MAIN", "rewind")
 
-Tab:Section({
-    Title = "Autofarm [Car Driving Indonesia]",
-    TextXAlignment = "Left",
-    TextSize = 17,
-})
-
+-- ============================================
 -- SERVICES
-local Player = game.Players.LocalPlayer
-local CarName = Player.Name .. "sCar"
-local TweenService = game:GetService("TweenService")
-local Vim = game:GetService("VirtualInputManager")
+-- ============================================
+local Players = game:GetService("Players")
+local VirtualInputManager = game:GetService("VirtualInputManager")
 
--- STATE
-local autofarmActive = false
-local elapsedTask
+local player = Players.LocalPlayer
+local gui = player:WaitForChild("PlayerGui")
 
--- HELPERS
-local function formatTime(seconds)
-	local h = math.floor(seconds / 3600)
-	local m = math.floor((seconds % 3600) / 60)
-	local s = seconds % 60
-	return string.format("%02d:%02d:%02d", h, m, s)
-end
+-- ============================================
+-- SETTINGS
+-- ============================================
+local AutoSapi = false
+local KEY_DELAY = 0.007
 
-local function UpdateJobStatus(status)
-	if _G.ParagraphStatusJob and _G.ParagraphStatusJob.SetDesc then
-		_G.ParagraphStatusJob:SetDesc(status)
-	end
-end
+local FARM_POSITION = Vector3.new(
+    -3760.887939,
+    -77.642609,
+    -23892.484375
+)
 
--- UI PARAGRAPHS
-_G.paragraphTimer = Tab:Paragraph({
-	Title = "Elapsed Time",
-	Desc = "Please Start Autofarm",
-	Image = "clock",
-	ImageSize = 30
+local SEARCH_RADIUS = 300
+
+-- ============================================
+-- PARAGRAPH STATUS
+-- ============================================
+local Paragraph = Tab:CreateParagraph({
+   Title = "STATUS TELEPORT",
+   Content = "Menunggu aksi..."
 })
 
-_G.ParagraphAutoFarmTimer = Tab:Paragraph({
-	Title = "Autofarm Statistics",
-	Desc = "Please Start Autofarm",
-	Image = "chart-pie",
-	ImageSize = 30
-})
-
-_G.paragraphTimeNow = Tab:Paragraph({
-	Title = "Date & Time",
-	Desc = os.date("%d-%m-%Y | %H:%M:%S"),
-	Image = "calendar-clock",
-	ImageSize = 30
-})
-
-_G.ParagraphStatusJob = Tab:Paragraph({
-	Title = "Autofarm Status",
-	Desc = "Menunggu perintah...",
-	Image = "briefcase",
-	ImageSize = 30
-})
-
--- ELAPSED TIME
-function StartElapsedTime()
-	if elapsedTask and typeof(elapsedTask) == "thread" then
-		task.cancel(elapsedTask)
-	end
-
-	local startTime = tick()
-
-	elapsedTask = task.spawn(function()
-		while autofarmActive and _G.paragraphTimer do
-			_G.paragraphTimer:SetDesc("Durasi Autofarm: " .. formatTime(math.floor(tick() - startTime)))
-			task.wait(1)
-		end
-	end)
+local function UpdateParagraph(text)
+   Paragraph:Set({
+      Title = "STATUS TELEPORT",
+      Content = text
+   })
 end
 
--- REALTIME CLOCK
-_G.startDateTimeUpdater = function()
-	task.spawn(function()
-		while autofarmActive and _G.paragraphTimeNow do
-			_G.paragraphTimeNow:SetDesc(os.date("%d-%m-%Y | %H:%M:%S"))
-			task.wait(1)
-		end
-	end)
+-- ============================================
+-- PRESS KEY
+-- ============================================
+local function pressKey(key)
+
+    VirtualInputManager:SendKeyEvent(true, key, false, game)
+
+    task.wait(0.01)
+
+    VirtualInputManager:SendKeyEvent(false, key, false, game)
 end
 
--- AUTOFARM FUNCTIONS
+-- ============================================
+-- EXECUTE SEQUENCE
+-- ============================================
+local function executeSequence(sequence)
 
-function TweenToJob()
-	UpdateJobStatus("Menuju Pengambilan Job...")
-	game.ReplicatedStorage.NetworkContainer.RemoteEvents.Job:FireServer("Truck")
-	local Root = Player.Character:FindFirstChild("HumanoidRootPart")
-	if not Root then return end
+    sequence = sequence:gsub("%s+", "")
 
-	TweenService:Create(Root, TweenInfo.new(0.5, Enum.EasingStyle.Quad), {
-		CFrame = Root.CFrame + Vector3.new(0, 100, 0)
-	}):Play()
+    for i = 1, #sequence do
 
-	task.delay(0.5, function()
-		TweenService:Create(Root, TweenInfo.new(1, Enum.EasingStyle.Quad), {
-			CFrame = CFrame.new(-21799.8, 1142.65, -26797.7)
-		}):Play()
+        local letter = sequence:sub(i, i)
 
-		task.delay(1, function()
-			TweenService:Create(Root, TweenInfo.new(1, Enum.EasingStyle.Exponential), {
-				CFrame = CFrame.new(-21799.8, 1042.65, -26797.7)
-			}):Play()
+        if Enum.KeyCode[letter] then
 
-			task.delay(1, function()
-				Root.Anchored = true
-				task.wait(0.3)
-				Root.Anchored = false
-			end)
-		end)
-	end)
+            pressKey(Enum.KeyCode[letter])
+
+            task.wait(KEY_DELAY)
+        end
+    end
 end
 
-function TakingJob()
-	UpdateJobStatus("Mengambil Job...")
+-- ============================================
+-- CLEAN TEXT
+-- ============================================
+local function cleanText(text)
 
-	repeat
-		local Root = Player.Character:FindFirstChild("HumanoidRootPart")
-		local Waypoint = workspace.Etc.Waypoint:FindFirstChild("Waypoint")
-		local Label = Waypoint and Waypoint:FindFirstChild("BillboardGui") and Waypoint.BillboardGui:FindFirstChild("TextLabel")
+    text = tostring(text)
 
-		if Root then Root.Anchored = true end
+    text = text:gsub("\n", "")
+    text = text:gsub("\r", "")
+    text = text:gsub("%s+", "")
 
-		if Label and Label.Text ~= "Rojod Semarang" then
-			game.ReplicatedStorage.NetworkContainer.RemoteEvents.Job:FireServer("Truck")
-			local Prompt = workspace.Etc.Job.Truck.Starter:FindFirstChildWhichIsA("ProximityPrompt", true)
-			if Prompt then
-				Prompt.MaxActivationDistance = 100000
-				fireproximityprompt(Prompt)
-			end
-		end
-
-		if Root then Root.Anchored = false end
-		task.wait(0.8)
-	until Label and Label.Text == "Rojod Semarang"
-
-	Player.Character.HumanoidRootPart.Anchored = false
+    return text
 end
 
-function SpawningTruck()
-	UpdateJobStatus("Spawning Truk...")
+-- ============================================
+-- TELEPORT FARM
+-- ============================================
+local function teleportToFarm()
 
-	local Root = Player.Character:FindFirstChild("HumanoidRootPart")
-	if not Root then return end
+    local character = player.Character
+    if not character then return end
 
-	Root.CFrame = CFrame.new(-21782.941, 1042.03, -26786.959)
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
 
-	task.wait(2)
-	Vim:SendKeyEvent(true, "F", false, game)
-	task.wait(0.3)
-	Vim:SendKeyEvent(false, "F", false, game)
-	task.wait(5)
+    hrp.CFrame = CFrame.new(FARM_POSITION)
 
-	local Car = workspace.Vehicles:FindFirstChild(CarName)
-	local Humanoid = Player.Character:FindFirstChild("Humanoid")
-	local Seat = Car and Car:FindFirstChild("DriveSeat")
-
-	if Humanoid and Seat then
-		pcall(function() Seat:Sit(Humanoid) end)
-		task.wait(0.5)
-		Vim:SendKeyEvent(true, "Space", false, game)
-		task.wait(0.1)
-		Vim:SendKeyEvent(false, "Space", false, game)
-	end
-
-	local Trailer = Car and Car:FindFirstChild("Trailer1")
-	if Trailer then Trailer:Destroy() end
+    task.wait(1)
 end
 
-function MovingCharacterToDestination(Destination)
-	UpdateJobStatus("Menuju Tujuan Pengiriman...")
+-- ============================================
+-- GET NEAREST COW
+-- ============================================
+local function GetNearestCow()
 
-	local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
-	local Car = workspace.Vehicles:FindFirstChild(CarName)
-	if not (Root and Car) then return end
+    local character = player.Character
+    if not character then return end
 
-	if not Car.PrimaryPart then
-		local Seat = Car:FindFirstChild("DriveSeat")
-		if Seat then Car.PrimaryPart = Seat else return end
-	end
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
 
-	local Follow = true
-	task.spawn(function()
-		while Follow do
-			if Car.PrimaryPart then
-				Car:PivotTo(Root.CFrame + Vector3.new(5, 0, 0))
-			end
-			task.wait(0.15)
-		end
-	end)
+    local nearestPart = nil
+    local nearestDistance = math.huge
 
-	local AboveStart = Root.CFrame + Vector3.new(0, 100, 0)
-	local AboveDest = CFrame.new(Destination.Position + Vector3.new(0, 100, 0))
+    for _,obj in ipairs(workspace:GetDescendants()) do
 
-	TweenService:Create(Root, TweenInfo.new(0.4, Enum.EasingStyle.Quad), { CFrame = AboveStart }):Play()
+        local name = obj.Name:lower()
 
-	task.delay(0.4, function()
-		TweenService:Create(Root, TweenInfo.new(1.6, Enum.EasingStyle.Sine), { CFrame = AboveDest }):Play()
+        if name:find("sapi") or name:find("cow") then
 
-		task.delay(1.6, function()
-			TweenService:Create(Root, TweenInfo.new(1.8, Enum.EasingStyle.Exponential), { CFrame = Destination }):Play()
+            local part
 
-			task.delay(1.8, function()
-				Follow = false
-				Root.Anchored = true
-				if Car.PrimaryPart then Car.PrimaryPart.Anchored = true end
-				task.wait(0.8)
-				if Car.PrimaryPart then Car.PrimaryPart.Anchored = false end
-			end)
-		end)
-	end)
+            if obj:IsA("BasePart") then
+                part = obj
+            else
+                part = obj:FindFirstChildWhichIsA("BasePart")
+            end
+
+            if part then
+
+                local distance =
+                    (hrp.Position - part.Position).Magnitude
+
+                local farmDistance =
+                    (part.Position - FARM_POSITION).Magnitude
+
+                if distance < nearestDistance
+                and farmDistance <= SEARCH_RADIUS then
+
+                    nearestDistance = distance
+                    nearestPart = part
+                end
+            end
+        end
+    end
+
+    return nearestPart
 end
 
-function CountdownTeleport(seconds)
-	UpdateJobStatus("Menunggu Teleport...")
+-- ============================================
+-- TELEPORT TO COW
+-- ============================================
+local function moveToCow(cowPart)
 
-	for i = seconds, 1, -1 do
-		_G.ParagraphAutoFarmTimer:SetDesc("Teleporting dalam " .. i .. " detik")
-		task.wait(1)
-	end
+    local character = player.Character
+    if not character then return false end
 
-	_G.ParagraphAutoFarmTimer:SetDesc("Teleportasi dimulai!")
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+
+    if not hrp or not cowPart then
+        return false
+    end
+
+    hrp.CFrame =
+        CFrame.new(cowPart.Position + Vector3.new(0,0,2))
+
+    return true
 end
 
-function SitInVehicle()
-	UpdateJobStatus("Duduk di Kendaraan...")
+-- ============================================
+-- HANDLE MINIGAME
+-- ============================================
+local function handleMinigame()
 
-	local Car = workspace.Vehicles:FindFirstChild(CarName)
-	local Hum = Player.Character and Player.Character:FindFirstChild("Humanoid")
-	local Seat = Car and Car:FindFirstChild("DriveSeat")
-	if Hum and Seat then pcall(function() Seat:Sit(Hum) end) end
+    for _,v in ipairs(gui:GetDescendants()) do
+
+        if not v:IsA("TextLabel") then
+            continue
+        end
+
+        local text = cleanText(v.Text)
+
+        if text == "" then
+            continue
+        end
+
+        -- ====================================
+        -- MODE URUTAN
+        -- ====================================
+        if text:find("URUTAN") then
+
+            local result = ""
+
+            for letter in text:gmatch("%u") do
+
+                if Enum.KeyCode[letter] then
+                    result = result .. letter
+                end
+            end
+
+            result = result:gsub("URUTAN", "")
+
+            if #result > 0 then
+                executeSequence(result)
+            end
+        end
+
+        -- ====================================
+        -- MODE GASPOL
+        -- ====================================
+        if text:lower():find("gaspol") then
+
+            local key = text:match("%[([A-Z])%]")
+            local amount = tonumber(text:match("x(%d+)"))
+
+            if key and amount and Enum.KeyCode[key] then
+
+                for i = 1, amount do
+
+                    pressKey(Enum.KeyCode[key])
+
+                    task.wait(0.01)
+                end
+            end
+        end
+
+        -- ====================================
+        -- MODE PENCET
+        -- ====================================
+        if text:lower():find("pencet") then
+
+            local key = text:match("%[([A-Z])%]")
+
+            if key and Enum.KeyCode[key] then
+                pressKey(Enum.KeyCode[key])
+            end
+        end
+    end
 end
 
-function CarTween(TargetCFrame)
-	UpdateJobStatus("Menggerakkan Mobil...")
+-- ============================================
+-- START AUTO COW
+-- ============================================
+local function startAutoCow()
 
-	local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
-	if not Root then return end
+    task.spawn(function()
 
-	local Car = workspace.Vehicles:FindFirstChild(CarName)
-	if not Car then return end
+        teleportToFarm()
 
-	if not Car.PrimaryPart then
-		local Seat = Car:FindFirstChild("DriveSeat")
-		if Seat then Car.PrimaryPart = Seat else return end
-	end
+        while AutoSapi do
 
-	local Temp = Instance.new("CFrameValue")
-	Temp.Value = Car:GetPivot()
-	Temp.Parent = workspace
+            pcall(function()
 
-	local Tween = TweenService:Create(Temp, TweenInfo.new(3, Enum.EasingStyle.Linear), { Value = TargetCFrame })
-	Temp:GetPropertyChangedSignal("Value"):Connect(function()
-		Car:PivotTo(Temp.Value)
-	end)
+                local cow = GetNearestCow()
 
-	Tween:Play()
-	Tween.Completed:Wait()
-	Temp:Destroy()
-	task.wait(0.2)
-	Root.Anchored = false
-end
+                if not cow then
 
--- TOGGLE AUTOFARM
-Tab:Toggle({
-    Title = "Start Autofarm",
-    Type = "Toggle",
-    Default = false,
-    Callback = function(state)
-        autofarmActive = state
-        if autofarmActive then
-            StartElapsedTime()
-            _G.startDateTimeUpdater()
+                    teleportToFarm()
 
-            task.spawn(function()
-                while autofarmActive do
-                    TweenToJob()
-                    task.wait(3.0) -- Wait for 3 seconds
+                    task.wait(1)
 
-                    if not autofarmActive then break end
-                    TakingJob()
-                    task.wait(3.0) -- Wait for 3 seconds
+                    return
+                end
 
-                    if not autofarmActive then break end
-                    SpawningTruck()
-                    task.wait(3.0) -- Wait for 3 seconds
+                local success = moveToCow(cow)
 
-                    if not autofarmActive then break end
-                    MovingCharacterToDestination(CFrame.new(-50937.152, 1012.215, -86353.031))
-                    task.wait(3.0) -- Wait for 3 seconds
+                if success then
 
-                    if not autofarmActive then break end
-                    CountdownTeleport(32) -- This takes 32 seconds
-                    task.wait(3.0) -- Wait for 3 seconds after the teleport countdown
+                    pressKey(Enum.KeyCode.E)
 
-                    if not autofarmActive then break end
-                    SitInVehicle()
-                    task.wait(3.0) -- Wait for 3 seconds
+                    task.wait(0.5)
 
-                    if not autofarmActive then break end
-                    CarTween(CFrame.new(-50899.601, 1013.977, -86534.976))
-                    task.wait(10.0)
+                    local minigameTimeout = tick() + 8
+
+                    while AutoSapi
+                    and tick() < minigameTimeout do
+
+                        handleMinigame()
+
+                        task.wait(0.05)
+                    end
                 end
             end)
-        else
-            UpdateJobStatus("Autofarm Dimatikan")
-        Yend
+
+            task.wait(0.1)
+        end
+    end)
+end
+
+-- ============================================
+-- AUTO OFF IF SIT
+-- ============================================
+task.spawn(function()
+
+    while true do
+
+        task.wait(0.5)
+
+        if AutoSapi then
+
+            local character = player.Character
+
+            local humanoid =
+                character and
+                character:FindFirstChildOfClass("Humanoid")
+
+            if humanoid and humanoid.SeatPart then
+
+                AutoSapi = false
+
+                if _G.AutoSapiToggle then
+                    _G.AutoSapiToggle:Set(false)
+                end
+
+                Rayfield:Notify({
+                    Title = "AUTO SAPI OFF",
+                    Content = "Kendaraan terdeteksi",
+                    Duration = 3,
+                    Image = "warning"
+                })
+            end
+        end
     end
+end)
+
+-- ============================================
+-- AUTO SAPI TOGGLE
+-- ============================================
+local AutoToggle
+
+AutoToggle = Tab:CreateToggle({
+    Name = "AUTO SUSU SAPI",
+    CurrentValue = false,
+    Flag = "AutoSapiToggle",
+
+    Callback = function(Value)
+
+        AutoSapi = Value
+
+        Rayfield:Notify({
+            Title = "AUTO SAPI",
+            Content =
+                AutoSapi and
+                "AUTO SAPI ON" or
+                "AUTO SAPI OFF",
+            Duration = 3,
+            Image = "keyboard"
+        })
+
+        if AutoSapi then
+            startAutoCow()
+        end
+    end,
+})
+
+_G.AutoSapiToggle = AutoToggle
+
+-- ============================================
+-- TELEPORT FUNCTION
+-- ============================================
+local function Teleport(targetCFrame, placeName)
+
+   local character =
+      player.Character or
+      player.CharacterAdded:Wait()
+
+   local hrp =
+      character:WaitForChild("HumanoidRootPart", 10)
+
+   local humanoid =
+      character:WaitForChild("Humanoid", 10)
+
+   if not hrp or not humanoid then
+      return
+   end
+
+   local seat = humanoid.SeatPart
+
+   local vehicleModel =
+      seat and seat:FindFirstAncestorOfClass("Model")
+
+   if vehicleModel and vehicleModel.PrimaryPart then
+
+      local offset =
+         vehicleModel.PrimaryPart.CFrame:ToObjectSpace(hrp.CFrame)
+
+      vehicleModel:SetPrimaryPartCFrame(targetCFrame)
+
+      task.wait()
+
+      hrp.CFrame =
+         vehicleModel.PrimaryPart.CFrame * offset
+
+   else
+
+      humanoid:ChangeState(
+         Enum.HumanoidStateType.GettingUp
+      )
+
+      hrp.CFrame = targetCFrame
+   end
+
+   hrp.AssemblyLinearVelocity = Vector3.zero
+   hrp.AssemblyAngularVelocity = Vector3.zero
+
+   Rayfield:Notify({
+      Title = "Teleport",
+      Content = "Berhasil teleport ke "..placeName,
+      Duration = 2,
+      Image = "map-pinned"
+   })
+end
+
+-- ============================================
+-- COUNTDOWN
+-- ============================================
+local function Countdown(seconds, label)
+
+   for i = seconds, 1, -1 do
+
+      local progress = (seconds - i) / seconds
+
+      local barLength = 20
+
+      local filled =
+         math.floor(progress * barLength)
+
+      local bar =
+         string.rep("█", filled) ..
+         string.rep("░", barLength - filled)
+
+      UpdateParagraph(
+         label ..
+         "\n[" .. bar .. "] " ..
+         math.floor(progress * 100) ..
+         "% (" .. i .. "s)"
+      )
+
+      task.wait(1)
+   end
+end
+
+-- ============================================
+-- MASJID DATA
+-- ============================================
+local MasjidList = {
+
+   ["3"] = {
+      Name = "MASJID 3.0K studs",
+      Delay = 15,
+
+      CFrame = CFrame.new(
+         -4035.952148,
+         -79.151535,
+         -26729.810547
+      )
+   },
+
+   ["23"] = {
+      Name = "MASJID 23.8K studs",
+      Delay = 35,
+
+      CFrame = CFrame.new(
+         60.027203,
+         3.475821,
+         -225.967621
+      )
+   },
+
+   ["9"] = {
+      Name = "MASJID 9",
+      Delay = 25,
+
+      CFrame = CFrame.new(
+         -2842.638672,
+         -38.547020,
+         -14443.070312
+      )
+   }
+}
+
+-- ============================================
+-- AUTO DETECT MASJID
+-- ============================================
+local AutoMasjid = false
+local LastTarget = nil
+local Running = false
+
+Tab:CreateToggle({
+   Name = "AUTO MASJID",
+   CurrentValue = false,
+   Flag = "AutoMasjid",
+
+   Callback = function(Value)
+
+      AutoMasjid = Value
+
+      Rayfield:Notify({
+         Title = "AUTO MASJID",
+         Content =
+            AutoMasjid and
+            "AUTO MASJID ON" or
+            "AUTO MASJID OFF",
+         Duration = 3,
+         Image = "map"
+      })
+   end
+})
+
+task.spawn(function()
+
+   while task.wait(0.5) do
+
+      if not AutoMasjid then
+         continue
+      end
+
+      if Running then
+         continue
+      end
+
+      local WaypointFolder =
+         workspace:FindFirstChild("Etc")
+
+      local WaypointMain =
+         WaypointFolder and
+         WaypointFolder:FindFirstChild("Waypoint")
+
+      local Waypoint =
+         WaypointMain and
+         WaypointMain:FindFirstChild("Waypoint")
+
+      local Billboard =
+         Waypoint and
+         Waypoint:FindFirstChild("BillboardGui")
+
+      local Label =
+         Billboard and
+         Billboard:FindFirstChild("TextLabel")
+
+      if Label then
+
+         local text = tostring(Label.Text)
+
+         UpdateParagraph(
+            "Tujuan Terdeteksi : "..text
+         )
+
+         for key,data in pairs(MasjidList) do
+
+            if string.find(text, key) then
+
+               if LastTarget ~= data.Name then
+
+                  Running = true
+                  LastTarget = data.Name
+
+                  UpdateParagraph(
+                     "Tujuan ditemukan : "..data.Name
+                  )
+
+                  Countdown(
+                     data.Delay,
+                     "Menuju "..data.Name
+                  )
+
+                  UpdateParagraph(
+                     "Teleport ke "..data.Name.."..."
+                  )
+
+                  Teleport(
+                     data.CFrame,
+                     data.Name
+                  )
+
+                  UpdateParagraph(
+                     "Sudah sampai "..data.Name.." ✔"
+                  )
+
+                  task.wait(3)
+
+                  Running = false
+               end
+            end
+         end
+      end
+   end
+end)
+
+-- ============================================
+-- BUTTON PAK HAJI
+-- ============================================
+Tab:CreateButton({
+   Name = "PAK HAJI",
+
+   Callback = function()
+
+      Teleport(
+         CFrame.new(
+            -3266.752686,
+            -79.649895,
+            -23785.265625
+         ),
+         "PAK HAJI"
+      )
+   end,
+})
+
+-- ============================================
+-- BUTTON MASJID 3
+-- ============================================
+Tab:CreateButton({
+   Name = "MASJID 3 STUDS",
+
+   Callback = function()
+
+      Countdown(15, "Menuju MASJID 3")
+
+      Teleport(
+         CFrame.new(
+            -4035.952148,
+            -79.151535,
+            -26729.810547
+         ),
+         "MASJID 3"
+      )
+
+      UpdateParagraph("Sudah sampai MASJID 3 ✔")
+   end,
+})
+
+-- ============================================
+-- BUTTON MASJID 23
+-- ============================================
+Tab:CreateButton({
+   Name = "MASJID 23 STUDS",
+
+   Callback = function()
+
+      Countdown(35, "Menuju MASJID 23")
+
+      Teleport(
+         CFrame.new(
+            60.027203,
+            3.475821,
+            -225.967621
+         ),
+         "MASJID 23"
+      )
+
+      UpdateParagraph("Sudah sampai MASJID 23 ✔")
+   end,
+})
+
+-- ============================================
+-- BUTTON MASJID 9
+-- ============================================
+Tab:CreateButton({
+   Name = "MASJID 9 STUDS",
+
+   Callback = function()
+
+      Countdown(25, "Menuju MASJID 9")
+
+      Teleport(
+         CFrame.new(
+            -2842.638672,
+            -38.547020,
+            -14443.070312
+         ),
+         "MASJID 9"
+      )
+
+      UpdateParagraph("Sudah sampai MASJID 9 ✔")
+   end,
 })

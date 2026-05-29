@@ -1,25 +1,1005 @@
-allgoodstore_buyer1001
-allgoodstore_buyer1002
-allgoodstore_buyer1003
-allgoodstore_buyer1004
-allgoodstore_buyer1005
-allgoodstore_buyer1006
-allgoodstore_buyer1007
-allgoodstore_buyer1008
-allgoodstore_buyer1009
-allgoodstore_buyer1010
-allgoodstore_buyer1011
-allgoodstore_buyer1012
-allgoodstore_buyer1013
-allgoodstore_buyer1014
-allgoodstore_buyer1015
-allgoodstore_buyer1016
-allgoodstore_buyer1017
-allgoodstore_buyer1018
-allgoodstore_buyer1019
-allgoodstore_buyer1020
-allgoodstore_buyer1021
-allgoodstore_buyer1022
-allgoodstore_buyer1023
-allgoodstore_buyer1024
-allgoodstore_buyer1025
+-- ============================================
+-- LOAD RAYFIELD
+-- ============================================
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+    Name = "MARSKIEEE_MMX",
+    Icon = 0,
+    LoadingTitle = "loading...",
+    LoadingSubtitle = "SC QUEST",
+    ShowText = "MARSKIEEE.",
+    Theme = "Default",
+
+    ToggleUIKeybind = "K",
+
+    DisableRayfieldPrompts = false,
+    DisableBuildWarnings = false,
+
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = nil,
+        FileName = "BigHub"
+    },
+})
+
+local Tab = Window:CreateTab("MAIN", "rewind")
+
+-- ============================================
+-- SERVICES
+-- ============================================
+local Players = game:GetService("Players")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+
+local player = Players.LocalPlayer
+local gui = player:WaitForChild("PlayerGui")
+
+-- ============================================
+-- SETTINGS
+-- ============================================
+local AutoSapi = false
+local KEY_DELAY = 0.007
+
+local FARM_POSITION = Vector3.new(
+    -3760.887939,
+    -77.642609,
+    -23892.484375
+)
+
+local SEARCH_RADIUS = 300
+
+-- ============================================
+-- PARAGRAPH STATUS
+-- ============================================
+local Paragraph = Tab:CreateParagraph({
+    Title = "STATUS TELEPORT",
+    Content = "Menunggu aksi..."
+})
+
+local function UpdateParagraph(text)
+    Paragraph:Set({
+        Title = "STATUS TELEPORT",
+        Content = text
+    })
+end
+
+-- ============================================
+-- PRESS KEY
+-- ============================================
+local function pressKey(key)
+
+    VirtualInputManager:SendKeyEvent(true, key, false, game)
+
+    task.wait(0.01)
+
+    VirtualInputManager:SendKeyEvent(false, key, false, game)
+end
+
+-- ============================================
+-- EXECUTE SEQUENCE
+-- ============================================
+local function executeSequence(sequence)
+
+    sequence = sequence:gsub("%s+", "")
+
+    for i = 1, #sequence do
+
+        local letter = sequence:sub(i, i)
+
+        if Enum.KeyCode[letter] then
+
+            pressKey(Enum.KeyCode[letter])
+
+            task.wait(KEY_DELAY)
+        end
+    end
+end
+
+-- ============================================
+-- CLEAN TEXT
+-- ============================================
+local function cleanText(text)
+
+    text = tostring(text)
+
+    text = text:gsub("\n", "")
+    text = text:gsub("\r", "")
+    text = text:gsub("%s+", "")
+
+    return text
+end
+
+-- ============================================
+-- TELEPORT FARM
+-- ============================================
+local function teleportToFarm()
+
+    local character = player.Character
+    if not character then return end
+
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    hrp.CFrame = CFrame.new(FARM_POSITION)
+
+    task.wait(1)
+end
+
+-- ============================================
+-- COW CACHE
+-- ============================================
+local CowCache = {}
+local LastCowScan = 0
+
+-- ============================================
+-- CACHE COWS
+-- ============================================
+local function RefreshCowCache()
+
+    table.clear(CowCache)
+
+    for _,obj in ipairs(workspace:GetDescendants()) do
+
+        local name =
+            tostring(obj.Name):lower()
+
+        if name:find("sapi")
+        or name:find("cow") then
+
+            local part
+
+            if obj:IsA("BasePart") then
+                part = obj
+            else
+                part =
+                    obj:FindFirstChildWhichIsA("BasePart")
+            end
+
+            if part then
+                table.insert(CowCache, part)
+            end
+        end
+    end
+end
+
+-- ============================================
+-- GET NEAREST COW
+-- ============================================
+local function GetNearestCow()
+
+    local character = player.Character
+    if not character then
+        return nil
+    end
+
+    local hrp =
+        character:FindFirstChild("HumanoidRootPart")
+
+    if not hrp then
+        return nil
+    end
+
+    -- refresh cache tiap 5 detik
+    if tick() - LastCowScan > 5 then
+
+        LastCowScan = tick()
+
+        RefreshCowCache()
+    end
+
+    local nearestPart = nil
+    local nearestDistance = math.huge
+
+    for _,part in ipairs(CowCache) do
+
+        if part and part.Parent then
+
+            local distance =
+                (hrp.Position - part.Position).Magnitude
+
+            local farmDistance =
+                (part.Position - FARM_POSITION).Magnitude
+
+            if distance < nearestDistance
+            and farmDistance <= SEARCH_RADIUS then
+
+                nearestDistance = distance
+                nearestPart = part
+            end
+        end
+    end
+
+    return nearestPart
+end
+
+-- ============================================
+-- MOVE TO COW (ANTI GOYANG)
+-- ============================================
+local function moveToCow(cowPart)
+
+    local character = player.Character
+    if not character then
+        return false
+    end
+
+    local hrp =
+        character:FindFirstChild("HumanoidRootPart")
+
+    if not hrp or not cowPart then
+        return false
+    end
+
+    -- posisi stabil
+    local targetPos =
+        cowPart.Position +
+        Vector3.new(0,0,2.5)
+
+    -- jangan teleport terus
+    local distance =
+        (hrp.Position - targetPos).Magnitude
+
+    if distance > 4 then
+
+        hrp.CFrame =
+            CFrame.new(
+                targetPos,
+                cowPart.Position
+            )
+
+        hrp.AssemblyLinearVelocity =
+            Vector3.zero
+
+        hrp.AssemblyAngularVelocity =
+            Vector3.zero
+    end
+
+    return true
+end
+
+-- ============================================
+-- MINIGAME CACHE
+-- ============================================
+local LastMinigameText = ""
+local LastMinigameTick = 0
+
+-- ============================================
+-- MINIGAME OPTIMIZED
+-- ============================================
+local LastText = {}
+local LastPress = 0
+
+-- ============================================
+-- SAFE PRESS
+-- ============================================
+local function safePress(key)
+
+    local now = tick()
+
+    -- anti spam terlalu cepat
+    if now - LastPress < 0.015 then
+        return
+    end
+
+    LastPress = now
+
+    pressKey(key)
+end
+
+-- ============================================
+-- HANDLE MINIGAME OPTIMIZED
+-- ============================================
+local function handleMinigame()
+
+    local labels = gui:GetDescendants()
+
+    for i = 1, #labels do
+
+        local v = labels[i]
+
+        if not v:IsA("TextLabel") then
+            continue
+        end
+
+        if not v.Visible then
+            continue
+        end
+
+        local raw = v.Text
+
+        if raw == "" then
+            continue
+        end
+
+        local text =
+            cleanText(raw)
+
+        if text == "" then
+            continue
+        end
+
+        -- ====================================
+        -- ANTI REPROCESS
+        -- ====================================
+        if LastText[text]
+        and tick() - LastText[text] < 0.15 then
+            continue
+        end
+
+        LastText[text] = tick()
+
+        -- ====================================
+        -- MODE URUTAN
+        -- ====================================
+        if text:find("URUTAN") then
+
+            local result = ""
+
+            for letter in text:gmatch("%u") do
+
+                if Enum.KeyCode[letter] then
+                    result = result .. letter
+                end
+            end
+
+            result =
+                result:gsub("URUTAN", "")
+
+            if #result > 0 then
+
+                for x = 1, #result do
+
+                    local key =
+                        result:sub(x, x)
+
+                    if Enum.KeyCode[key] then
+
+                        safePress(
+                            Enum.KeyCode[key]
+                        )
+
+                        task.wait(0.01)
+                    end
+                end
+            end
+        end
+
+        -- ====================================
+        -- MODE GASPOL
+        -- ====================================
+        if text:lower():find("gaspol") then
+
+            local key =
+                text:match("%[([A-Z])%]")
+
+            local amount =
+                tonumber(
+                    text:match("x(%d+)")
+                )
+
+            if key
+            and amount
+            and Enum.KeyCode[key] then
+
+                -- cap biar gak freeze
+                amount =
+                    math.clamp(amount, 1, 30)
+
+                for x = 1, amount do
+
+                    safePress(
+                        Enum.KeyCode[key]
+                    )
+
+                    task.wait(0.01)
+                end
+            end
+        end
+
+        -- ====================================
+        -- MODE PENCET
+        -- ====================================
+        if text:lower():find("pencet") then
+
+            local key =
+                text:match("%[([A-Z])%]")
+
+            if key
+            and Enum.KeyCode[key] then
+
+                safePress(
+                    Enum.KeyCode[key]
+                )
+            end
+        end
+    end
+
+    -- bersihin cache lama
+    for txt,time in pairs(LastText) do
+
+        if tick() - time > 2 then
+            LastText[txt] = nil
+        end
+    end
+end
+
+-- ============================================
+-- START AUTO COW
+-- ============================================
+local function startAutoCow()
+
+    task.spawn(function()
+
+        teleportToFarm()
+
+        task.wait(1)
+
+        while AutoSapi do
+
+            pcall(function()
+
+                local cow =
+                    GetNearestCow()
+
+                if not cow then
+
+                    UpdateParagraph(
+                        "Mencari sapi..."
+                    )
+
+                    task.wait(1)
+
+                    return
+                end
+
+                local success =
+                    moveToCow(cow)
+
+                if success then
+
+                    task.wait(0.2)
+
+                    pressKey(
+                        Enum.KeyCode.E
+                    )
+
+                    task.wait(0.8)
+
+                    local minigameTimeout =
+                        tick() + 8
+
+                    while AutoSapi
+                    and tick() < minigameTimeout do
+
+                        handleMinigame()
+
+                        -- lebih ringan
+                        task.wait(0.15)
+                    end
+                end
+            end)
+
+            task.wait(0.3)
+        end
+    end)
+end
+
+-- ============================================
+-- AUTO RESTART AUTO SAPI
+-- ============================================
+local AutoRestartSapi = false
+
+-- ============================================
+-- AUTO OFF IF SIT
+-- ============================================
+task.spawn(function()
+    while true do
+        task.wait(0.5)
+
+        local character = player.Character
+
+        local humanoid =
+            character and
+            character:FindFirstChildOfClass("Humanoid")
+
+        if humanoid and humanoid.SeatPart then
+
+            -- auto off saat duduk
+            if AutoSapi then
+                AutoSapi = false
+
+                if _G.AutoSapiToggle then
+                    _G.AutoSapiToggle:Set(false)
+                end
+
+                Rayfield:Notify({
+                    Title = "AUTO SAPI OFF",
+                    Content = "Seat terdeteksi",
+                    Duration = 3,
+                    Image = "warning"
+                })
+            end
+
+        else
+
+            -- auto nyala lagi setelah teleport
+            if AutoRestartSapi and not AutoSapi then
+                AutoRestartSapi = false
+
+                task.wait(1)
+
+                AutoSapi = true
+
+                if _G.AutoSapiToggle then
+                    _G.AutoSapiToggle:Set(true)
+                end
+
+                Rayfield:Notify({
+                    Title = "AUTO SAPI ON",
+                    Content = "Melanjutkan auto susu sapi",
+                    Duration = 3,
+                    Image = "check"
+                })
+
+                startAutoCow()
+            end
+        end
+    end
+end)
+
+-- ============================================
+-- AUTO SAPI TOGGLE
+-- ============================================
+local AutoToggle
+
+AutoToggle = Tab:CreateToggle({
+    Name = "AUTO SUSU SAPI",
+    CurrentValue = false,
+    Flag = "AutoSapiToggle",
+
+    Callback = function(Value)
+
+        AutoSapi = Value
+
+        Rayfield:Notify({
+            Title = "AUTO SAPI",
+            Content = AutoSapi and
+                "AUTO SAPI ON" or
+                "AUTO SAPI OFF",
+            Duration = 3,
+            Image = "keyboard"
+        })
+
+        if AutoSapi then
+            startAutoCow()
+        end
+    end,
+})
+
+_G.AutoSapiToggle = AutoToggle
+
+-- ============================================
+-- TELEPORT FUNCTION
+-- ============================================
+local function Teleport(targetCFrame, placeName)
+
+    local character =
+        player.Character or
+        player.CharacterAdded:Wait()
+
+    local hrp =
+        character:WaitForChild("HumanoidRootPart", 10)
+
+    local humanoid =
+        character:WaitForChild("Humanoid", 10)
+
+    if not hrp or not humanoid then
+        return
+    end
+
+    local seat = humanoid.SeatPart
+
+    local vehicleModel =
+        seat and seat:FindFirstAncestorOfClass("Model")
+
+    if vehicleModel and vehicleModel.PrimaryPart then
+
+        local offset =
+            vehicleModel.PrimaryPart.CFrame:ToObjectSpace(hrp.CFrame)
+
+        vehicleModel:SetPrimaryPartCFrame(targetCFrame)
+
+        task.wait()
+
+        hrp.CFrame =
+            vehicleModel.PrimaryPart.CFrame * offset
+
+    else
+
+        humanoid:ChangeState(
+            Enum.HumanoidStateType.GettingUp
+        )
+
+        hrp.CFrame = targetCFrame
+    end
+
+    hrp.AssemblyLinearVelocity = Vector3.zero
+    hrp.AssemblyAngularVelocity = Vector3.zero
+
+    Rayfield:Notify({
+        Title = "Teleport",
+        Content = "Berhasil teleport ke " .. placeName,
+        Duration = 2,
+        Image = "map-pinned"
+    })
+end
+
+-- ============================================
+-- COUNTDOWN
+-- ============================================
+local function Countdown(seconds, label)
+
+    for i = seconds, 1, -1 do
+
+        local progress = (seconds - i) / seconds
+
+        local barLength = 20
+
+        local filled =
+            math.floor(progress * barLength)
+
+        local bar =
+            string.rep("█", filled) ..
+            string.rep("░", barLength - filled)
+
+        UpdateParagraph(
+            label ..
+            "\n[" .. bar .. "] " ..
+            math.floor(progress * 100) ..
+            "% (" .. i .. "s)"
+        )
+
+        task.wait(1)
+    end
+end
+
+-- ============================================
+-- AUTO DETECT MASJID FINAL FIX
+-- ============================================
+local AutoMasjid = false
+local Running = false
+local Cooldown = false
+
+-- ============================================
+-- GET TARGET
+-- ============================================
+local function GetMasjidTarget()
+
+    local masjidDetected = false
+    local studsText = ""
+
+    -- scan PlayerGui saja (lebih ringan)
+    for _,v in ipairs(player.PlayerGui:GetDescendants()) do
+
+        if v:IsA("TextLabel") then
+
+            local text =
+                tostring(v.Text):lower()
+
+            -- detect masjid
+            if text:find("masjid") then
+                masjidDetected = true
+            end
+
+            -- detect studs
+            if text:find("studs") then
+                studsText = text
+            end
+        end
+    end
+
+    -- tidak ada tujuan
+    if not masjidDetected then
+        return nil
+    end
+
+    -- DEBUG STATUS
+    UpdateParagraph(
+        "MASJID TERDETEKSI\n"..
+        "DISTANCE : "..studsText
+    )
+
+    -- ====================================
+    -- MASJID 3K
+    -- ====================================
+    if studsText:find("3%.0k") then
+
+        return {
+            Name = "MASJID 3K",
+            Delay = 15,
+
+            CFrame = CFrame.new(
+                -4035.952148,
+                -79.151535,
+                -26729.810547
+            )
+        }
+    end
+
+    -- ====================================
+    -- MASJID 9K
+    -- ====================================
+    if studsText:find("9%.3k") then
+
+        return {
+            Name = "MASJID 9K",
+            Delay = 25,
+
+            CFrame = CFrame.new(
+                -2842.638672,
+                -38.547020,
+                -14443.070312
+            )
+        }
+    end
+
+    -- ====================================
+    -- MASJID 23K
+    -- ====================================
+    if studsText:find("23%.8k") then
+
+        return {
+            Name = "MASJID 23K",
+            Delay = 55,
+
+            CFrame = CFrame.new(
+                60.027203,
+                3.475821,
+                -225.967621
+            )
+        }
+    end
+
+    return nil
+end
+
+-- ============================================
+-- TOGGLE
+-- ============================================
+Tab:CreateToggle({
+    Name = "AUTO MASJID",
+    CurrentValue = false,
+    Flag = "AutoMasjid",
+
+    Callback = function(Value)
+
+        AutoMasjid = Value
+
+        Rayfield:Notify({
+            Title = "AUTO MASJID",
+            Content =
+                Value and
+                "AUTO MASJID ON" or
+                "AUTO MASJID OFF",
+            Duration = 3,
+            Image = "map"
+        })
+
+        -- reset state saat OFF
+        if not Value then
+
+            Running = false
+            Cooldown = false
+
+            UpdateParagraph(
+                "Menunggu aksi..."
+            )
+        end
+    end
+})
+
+-- ============================================
+-- MAIN LOOP
+-- ============================================
+task.spawn(function()
+
+    while task.wait(1) do
+
+        if not AutoMasjid then
+            continue
+        end
+
+        if Running then
+            continue
+        end
+
+        local target = GetMasjidTarget()
+
+        -- ====================================
+        -- TARGET DITEMUKAN
+        -- ====================================
+        if target then
+
+            -- anti spam
+            if Cooldown then
+                continue
+            end
+
+            Cooldown = true
+            Running = true
+
+            -- matikan auto sapi sementara
+            if AutoSapi then
+                AutoSapi = false
+
+                if _G.AutoSapiToggle then
+                    _G.AutoSapiToggle:Set(false)
+                end
+            end
+
+            UpdateParagraph(
+                "TARGET : " .. target.Name ..
+                "\nTeleport " .. target.Delay .. " detik..."
+            )
+
+            -- COUNTDOWN
+            Countdown(
+                target.Delay,
+                "MENUJU " .. target.Name
+            )
+
+            -- TELEPORT
+            Teleport(
+                target.CFrame,
+                target.Name
+            )
+
+            UpdateParagraph(
+                "SAMPAI " .. target.Name ..
+                " ✔\nMENGAKTIFKAN AUTO SAPI..."
+            )
+
+            -- tunggu stabil dulu
+            task.wait(2)
+
+            -- cek jangan aktif kalau duduk
+            local character = player.Character
+
+            local humanoid =
+                character and
+                character:FindFirstChildOfClass("Humanoid")
+
+            local sitting =
+                humanoid and humanoid.SeatPart
+
+            -- aktifkan lagi auto sapi
+            if not sitting then
+
+                AutoSapi = true
+
+                if _G.AutoSapiToggle then
+                    _G.AutoSapiToggle:Set(true)
+                end
+
+                -- start ulang loop sapi
+                startAutoCow()
+
+                Rayfield:Notify({
+                    Title = "AUTO SAPI",
+                    Content = "AUTO SUSU SAPI AKTIF",
+                    Duration = 3,
+                    Image = "cow"
+                })
+
+            else
+
+                Rayfield:Notify({
+                    Title = "AUTO SAPI",
+                    Content = "Gagal aktif, karakter sedang duduk",
+                    Duration = 3,
+                    Image = "warning"
+                })
+            end
+
+            task.wait(2)
+
+            Running = false
+
+        else
+
+            -- reset kalau quest hilang
+            Cooldown = false
+
+            UpdateParagraph(
+                "Menunggu perintah..."
+            )
+        end
+    end
+end)
+
+-- ============================================
+-- BUTTON PAK HAJI
+-- ============================================
+Tab:CreateButton({
+    Name = "PAK HAJI",
+
+    Callback = function()
+
+        Teleport(
+            CFrame.new(
+                -3266.752686,
+                -79.649895,
+                -23785.265625
+            ),
+            "PAK HAJI"
+        )
+    end,
+})
+
+-- ============================================
+-- BUTTON MASJID 3
+-- ============================================
+Tab:CreateButton({
+    Name = "MASJID 3 STUDS",
+
+    Callback = function()
+
+        Countdown(15, "Menuju MASJID 3")
+
+        Teleport(
+            CFrame.new(
+                -4035.952148,
+                -79.151535,
+                -26729.810547
+            ),
+            "MASJID 3"
+        )
+
+        UpdateParagraph("Sudah sampai MASJID 3 ✔")
+    end,
+})
+
+-- ============================================
+-- BUTTON MASJID 23
+-- ============================================
+Tab:CreateButton({
+    Name = "MASJID 23 STUDS",
+
+    Callback = function()
+
+        Countdown(55, "Menuju MASJID 23")
+
+        Teleport(
+            CFrame.new(
+                60.027203,
+                3.475821,
+                -225.967621
+            ),
+            "MASJID 23"
+        )
+
+        UpdateParagraph("Sudah sampai MASJID 23 ✔")
+    end,
+})
+
+-- ============================================
+-- BUTTON MASJID 9
+-- ============================================
+Tab:CreateButton({
+    Name = "MASJID 9 STUDS",
+
+    Callback = function()
+
+        Countdown(25, "Menuju MASJID 9")
+
+        Teleport(
+            CFrame.new(
+                -2842.638672,
+                -38.547020,
+                -14443.070312
+            ),
+            "MASJID 9"
+        )
+
+        UpdateParagraph("Sudah sampai MASJID 9 ✔")
+    end,
+})

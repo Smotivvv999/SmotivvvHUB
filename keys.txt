@@ -1,17 +1,13 @@
 -- ============================================
--- MARSKIEEE_MMX - VERSI ANDROID (MOBILE)
+-- LOAD RAYFIELD
 -- ============================================
--- Handle Minigame: Tap GUI Buttons (bukan keyboard)
--- Format: Gaspol [F], Tap [R], A → W → S → R
--- ============================================
-
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-    Name = "MARSKIEEE_MMX | ANDROID",
+    Name = "MARSKIEEE_MMX",
     Icon = 0,
     LoadingTitle = "loading...",
-    LoadingSubtitle = "SC QUEST - MOBILE",
+    LoadingSubtitle = "SC QUEST",
     ShowText = "MARSKIEEE.",
     Theme = "Default",
     ToggleUIKeybind = "K",
@@ -20,7 +16,7 @@ local Window = Rayfield:CreateWindow({
     ConfigurationSaving = {
         Enabled = true,
         FolderName = nil,
-        FileName = "BigHubMobile"
+        FileName = "BigHub"
     },
 })
 
@@ -32,7 +28,6 @@ local Tab = Window:CreateTab("MAIN", "rewind")
 local Players = game:GetService("Players")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local Workspace = game:GetService("Workspace")
-local GuiService = game:GetService("GuiService")
 
 local player = Players.LocalPlayer
 local gui = player:WaitForChild("PlayerGui")
@@ -41,7 +36,7 @@ local gui = player:WaitForChild("PlayerGui")
 -- SETTINGS
 -- ============================================
 local AutoSapi = false
-local TAP_DELAY = 0.05
+local KEY_DELAY = 0.007
 
 local FARM_POSITION = Vector3.new(-3760.887939, -77.642609, -23892.484375)
 local SEARCH_RADIUS = 300
@@ -62,145 +57,21 @@ local function UpdateParagraph(text)
 end
 
 -- ============================================
--- CLEAN TEXT (definisi awal agar bisa dipakai fungsi lain)
+-- PRESS KEY
+-- ============================================
+local function pressKey(key)
+    VirtualInputManager:SendKeyEvent(true, key, false, game)
+    task.wait(0.01)
+    VirtualInputManager:SendKeyEvent(false, key, false, game)
+end
+
+-- ============================================
+-- CLEAN TEXT
 -- ============================================
 local function cleanText(text)
     text = tostring(text)
     text = text:gsub("[\r\n]+", ""):gsub("%s+", "")
     return text
-end
-
--- ============================================
--- ANDROID: TAP GUI BUTTON SYSTEM
--- ============================================
-
--- Melakukan virtual tap pada koordinat layar
-local function tapAt(x, y)
-    -- Parameter: (x, y, touchIndex, isTouchDown, game)
-    VirtualInputManager:SendTouchEvent(x, y, 0, true, game)
-    task.wait(0.01)
-    VirtualInputManager:SendTouchEvent(x, y, 0, false, game)
-end
-
--- Tap pada GUI button (menghitung posisi tengah)
-local function tapButton(button)
-    if not button or not button.Visible then return false end
-
-    local absPos = button.AbsolutePosition
-    local absSize = button.AbsoluteSize
-
-    if absSize.X <= 0 or absSize.Y <= 0 then return false end
-
-    local centerX = absPos.X + (absSize.X / 2)
-    local centerY = absPos.Y + (absSize.Y / 2)
-
-    tapAt(centerX, centerY)
-    return true
-end
-
--- Cari GUI element (TextButton, ImageButton, atau Frame dengan TextLabel) berdasarkan teks key
--- Support berbagai tipe UI button di Android Roblox
-local function findButtonByText(key)
-    if not key or key == "" then return nil end
-    key = tostring(key):upper()
-
-    local playerGui = player:WaitForChild("PlayerGui")
-
-    -- Priority 1: TextButton dengan teks yang sama persis
-    for _, obj in ipairs(playerGui:GetDescendants()) do
-        if obj:IsA("TextButton") and obj.Visible then
-            local btnText = cleanText(obj.Text):upper()
-            if btnText == key then
-                return obj
-            end
-        end
-    end
-
-    -- Priority 2: ImageButton dengan child TextLabel yang cocok
-    for _, obj in ipairs(playerGui:GetDescendants()) do
-        if obj:IsA("ImageButton") and obj.Visible then
-            for _, child in ipairs(obj:GetDescendants()) do
-                if child:IsA("TextLabel") then
-                    local lblText = cleanText(child.Text):upper()
-                    if lblText == key then
-                        return obj
-                    end
-                end
-            end
-            -- Cek nama object juga
-            if obj.Name:upper() == key then
-                return obj
-            end
-        end
-    end
-
-    -- Priority 3: Frame/GuiObject dengan child TextLabel yang cocok (sering dipakai game mobile)
-    for _, obj in ipairs(playerGui:GetDescendants()) do
-        if (obj:IsA("Frame") or obj:IsA("ImageLabel")) and obj.Visible then
-            for _, child in ipairs(obj:GetDescendants()) do
-                if child:IsA("TextLabel") then
-                    local lblText = cleanText(child.Text):upper()
-                    if lblText == key then
-                        -- Return parent yang bisa di-tap (Frame/ImageLabel itu sendiri)
-                        return obj
-                    end
-                end
-            end
-        end
-    end
-
-    -- Priority 4: TextLabel langsung yang teksnya cocok (kadang label itu sendiri yang menerima input)
-    for _, obj in ipairs(playerGui:GetDescendants()) do
-        if obj:IsA("TextLabel") and obj.Visible then
-            local lblText = cleanText(obj.Text):upper()
-            if lblText == key then
-                return obj
-            end
-        end
-    end
-
-    return nil
-end
-
--- Cari semua button yang visible di layar untuk debug
-local function findAllVisibleButtons()
-    local buttons = {}
-    local playerGui = player:WaitForChild("PlayerGui")
-
-    for _, obj in ipairs(playerGui:GetDescendants()) do
-        if not obj.Visible then continue end
-
-        local btnText = nil
-        if obj:IsA("TextButton") then
-            btnText = cleanText(obj.Text):upper()
-        elseif obj:IsA("ImageButton") then
-            for _, child in ipairs(obj:GetDescendants()) do
-                if child:IsA("TextLabel") then
-                    btnText = cleanText(child.Text):upper()
-                    break
-                end
-            end
-            if not btnText then
-                btnText = obj.Name:upper()
-            end
-        elseif obj:IsA("Frame") or obj:IsA("ImageLabel") then
-            for _, child in ipairs(obj:GetDescendants()) do
-                if child:IsA("TextLabel") then
-                    local txt = cleanText(child.Text):upper()
-                    if #txt == 1 and txt:match("%u") then
-                        btnText = txt
-                        break
-                    end
-                end
-            end
-        end
-
-        if btnText and #btnText == 1 and btnText:match("%u") then
-            table.insert(buttons, {Button = obj, Text = btnText, Type = obj.ClassName})
-        end
-    end
-
-    return buttons
 end
 
 -- ============================================
@@ -223,14 +94,14 @@ local NextScan = 0
 
 local function RefreshCowCache()
     table.clear(CowCache)
-
+    
     local region = Region3.new(
         FARM_POSITION - Vector3.new(SEARCH_RADIUS, 50, SEARCH_RADIUS),
         FARM_POSITION + Vector3.new(SEARCH_RADIUS, 50, SEARCH_RADIUS)
     )
-
+    
     local parts = Workspace:FindPartsInRegion3(region, nil, 500)
-
+    
     for _, part in ipairs(parts) do
         local name = part.Name:lower()
         if name:find("sapi") or name:find("cow") then
@@ -244,15 +115,15 @@ local function GetNearestCow()
     if not character then return nil end
     local hrp = character:FindFirstChild("HumanoidRootPart")
     if not hrp then return nil end
-
+    
     if tick() > NextScan then
         RefreshCowCache()
         NextScan = tick() + 5
     end
-
+    
     local nearest = nil
     local closest = math.huge
-
+    
     for _, part in ipairs(CowCache) do
         if part and part.Parent then
             local distance = (hrp.Position - part.Position).Magnitude
@@ -262,7 +133,7 @@ local function GetNearestCow()
             end
         end
     end
-
+    
     return nearest
 end
 
@@ -274,21 +145,21 @@ local function moveToCow(cowPart)
     if not character then return false end
     local hrp = character:FindFirstChild("HumanoidRootPart")
     if not hrp or not cowPart then return false end
-
+    
     local targetPos = cowPart.Position + Vector3.new(0, 0, 2.5)
     local distance = (hrp.Position - targetPos).Magnitude
-
+    
     if distance > 4 then
         hrp.CFrame = CFrame.new(targetPos, cowPart.Position)
         hrp.AssemblyLinearVelocity = Vector3.zero
         hrp.AssemblyAngularVelocity = Vector3.zero
     end
-
+    
     return true
 end
 
 -- ============================================
--- ANDROID MINIGAME STATE MACHINE
+-- MINIGAME STATE MACHINE
 -- ============================================
 local MinigameStateMachine = {
     States = {
@@ -309,13 +180,13 @@ local MinigameStateMachine = {
         ProcessedTexts = {},
         PendingKeys = {},
         CurrentKeyIndex = 0,
-        LastTapTime = 0,
+        LastKeyPress = 0,
         SessionStart = 0,
         MinigameMode = "",
         TotalMinigames = 0,
         SuccessfulMinigames = 0,
         FailedMinigames = 0,
-        TapsDone = 0
+        KeysPressed = 0
     }
 }
 
@@ -325,7 +196,7 @@ function MinigameStateMachine:Transition(newState, data)
     instance.CurrentState = newState
     instance.StateStartTime = tick()
     instance.StateData = data or {}
-
+    
     if newState == self.States.SCANNING then
         instance.SessionStart = tick()
         instance.ProcessedTexts = {}
@@ -335,7 +206,7 @@ function MinigameStateMachine:Transition(newState, data)
         instance.CurrentKeyIndex = 0
         instance.TotalMinigames = instance.TotalMinigames + 1
     elseif newState == self.States.EXECUTING then
-        instance.LastTapTime = tick()
+        instance.LastKeyPress = tick()
     elseif newState == self.States.COMPLETED then
         instance.SuccessfulMinigames = instance.SuccessfulMinigames + 1
     elseif newState == self.States.TIMEOUT then
@@ -354,186 +225,114 @@ function MinigameStateMachine:HandleIdle()
     end
 end
 
--- Cari container minigame untuk scan yang lebih efisien
-local function GetMinigameContainer()
-    local playerGui = player:WaitForChild("PlayerGui")
-
-    -- Cari ScreenGui atau Frame yang mengandung minigame
-    for _, screenGui in ipairs(playerGui:GetChildren()) do
-        if not screenGui:IsA("ScreenGui") then continue end
-        if not screenGui.Enabled then continue end
-
-        for _, child in ipairs(screenGui:GetDescendants()) do
-            if not child:IsA("TextLabel") then continue end
-            if not child.Visible then continue end
-
-            local text = cleanText(child.Text):lower()
-
-            -- Jika ada indikator minigame, return screenGui ini
-            if text:find("gaspol") or text:find("tap") or text:find("→") or
-               text:find("sapi") or text:find("kekuatan") then
-                return screenGui
-            end
-        end
-    end
-
-    return nil
-end
-
 function MinigameStateMachine:HandleScanning()
     local instance = self.Instance
+    local labels = gui:GetDescendants()
     local detectedMinigame = nil
-
-    -- Gunakan container detection untuk scan lebih cepat
-    local container = GetMinigameContainer()
-    local labels
-
-    if container then
-        labels = container:GetDescendants()
-    else
-        labels = gui:GetDescendants()
-    end
-
+    
     for i = 1, #labels do
         local v = labels[i]
-
-        if not v:IsA("TextLabel") and not v:IsA("TextButton") then continue end
+        
+        if not v:IsA("TextLabel") then continue end
         if not v.Visible then continue end
-
+        
         local raw = v.Text
         if raw == "" then continue end
-
+        
         local text = cleanText(raw)
         if text == "" then continue end
-
+        
         if instance.ProcessedTexts[text] and tick() - instance.ProcessedTexts[text] < 0.15 then
             continue
         end
-
+        
         instance.ProcessedTexts[text] = tick()
-
-        -- =====================
-        -- MODE GASPOL Android
-        -- Format: "Gaspol [F]" + counter "0/10"
-        -- =====================
-        if text:lower():find("gaspol") then
-            local key = text:match("%[([A-Z])%]")
-
-            if key then
-                -- Cari counter terpisah (contoh: 0/10, 3/10)
-                local counterAmount = 10
-                for _, lbl in ipairs(labels) do
-                    if lbl:IsA("TextLabel") and lbl.Visible then
-                        local ct = cleanText(lbl.Text)
-                        local num, denom = ct:match("(%d+)/(%d+)")
-                        if num and denom then
-                            local remaining = tonumber(denom) - tonumber(num)
-                            if remaining > 0 then
-                                counterAmount = remaining
-                                break
-                            end
-                        end
-                    end
+        
+        -- Mode URUTAN
+        if text:find("URUTAN") then
+            local result = ""
+            for letter in text:gmatch("%u") do
+                if Enum.KeyCode[letter] then
+                    result = result .. letter
                 end
-
+            end
+            
+            result = result:gsub("URUTAN", "")
+            
+            if #result > 0 then
                 detectedMinigame = {
-                    Mode = "GASPOL",
-                    Key = key,
-                    Amount = counterAmount,
+                    Mode = "URUTAN",
+                    Key = result:sub(1, 1),
+                    Amount = #result,
                     Keys = {},
                     RawText = text
                 }
-
-                for x = 1, counterAmount do
+                
+                for x = 1, #result do
+                    table.insert(detectedMinigame.Keys, result:sub(x, x))
+                end
+                
+                break
+            end
+        end
+        
+        -- Mode GASPOL
+        if text:lower():find("gaspol") then
+            local key = text:match("%[([A-Z])%]")
+            local amount = tonumber(text:match("x(%d+)"))
+            
+            if key and amount and Enum.KeyCode[key] then
+                amount = math.clamp(amount, 1, 30)
+                
+                detectedMinigame = {
+                    Mode = "GASPOL",
+                    Key = key,
+                    Amount = amount,
+                    Keys = {},
+                    RawText = text
+                }
+                
+                for x = 1, amount do
                     table.insert(detectedMinigame.Keys, key)
                 end
-
+                
                 break
             end
         end
-
-        -- =====================
-        -- MODE TAP Android
-        -- Format: "Tap [R]"
-        -- =====================
-        if text:lower():find("tap") then
-            local key = text:match("%[([A-Z])%]")
-
-            if key then
-                detectedMinigame = {
-                    Mode = "TAP",
-                    Key = key,
-                    Amount = 1,
-                    Keys = {key},
-                    RawText = text
-                }
-
-                break
-            end
-        end
-
-        -- =====================
-        -- MODE URUTAN Android
-        -- Format: "A → W → S → R"
-        -- =====================
-        if text:find("→") then
-            local keys = {}
-            local hasValidKeys = false
-
-            for letter in text:gmatch("%u") do
-                table.insert(keys, letter)
-                hasValidKeys = true
-            end
-
-            if hasValidKeys and #keys > 0 then
-                detectedMinigame = {
-                    Mode = "URUTAN",
-                    Key = keys[1],
-                    Amount = #keys,
-                    Keys = keys,
-                    RawText = text
-                }
-
-                break
-            end
-        end
-
-        -- =====================
-        -- Fallback: PENCET [X] format (jika ada)
-        -- =====================
+        
+        -- Mode PENCET
         if text:lower():find("pencet") then
             local key = text:match("%[([A-Z])%]")
-
-            if key then
+            
+            if key and Enum.KeyCode[key] then
                 detectedMinigame = {
-                    Mode = "TAP",
+                    Mode = "PENCET",
                     Key = key,
                     Amount = 1,
                     Keys = {key},
                     RawText = text
                 }
-
+                
                 break
             end
         end
     end
-
-    -- Bersihkan processed texts lama
+    
     for txt, time in pairs(instance.ProcessedTexts) do
         if tick() - time > 2 then
             instance.ProcessedTexts[txt] = nil
         end
     end
-
+    
     if detectedMinigame then
         self:Transition(self.States.DETECTED, detectedMinigame)
         return true
     end
-
+    
     if tick() - instance.StateStartTime > 3 then
         self:Transition(self.States.TIMEOUT, {Reason = "No minigame detected"})
     end
-
+    
     return false
 end
 
@@ -543,7 +342,7 @@ function MinigameStateMachine:HandleDetected()
         self:Transition(self.States.TIMEOUT, {Reason = "Invalid minigame data"})
         return
     end
-
+    
     instance.PendingKeys = instance.StateData.Keys
     instance.CurrentKeyIndex = 0
     self:Transition(self.States.PROCESSING)
@@ -558,81 +357,29 @@ end
 function MinigameStateMachine:HandleExecuting()
     local instance = self.Instance
     local now = tick()
-
-    if now - instance.LastTapTime < TAP_DELAY then
+    
+    if now - instance.LastKeyPress < 0.015 then
         return
     end
-
+    
     instance.CurrentKeyIndex = instance.CurrentKeyIndex + 1
-
+    
     if instance.CurrentKeyIndex > #instance.PendingKeys then
         self:Transition(self.States.COMPLETED)
         return
     end
-
+    
     local key = instance.PendingKeys[instance.CurrentKeyIndex]
-
-    if key then
-        instance.LastTapTime = now
-        instance.TapsDone = instance.TapsDone + 1
-
-        -- ANDROID: Tap GUI button, bukan keyboard key
-        -- Retry mechanism: coba cari button beberapa kali
-        local button = nil
-        local retryCount = 0
-        local maxRetries = 3
-
-        while retryCount < maxRetries do
-            button = findButtonByText(key)
-            if button then
-                break
-            end
-            retryCount = retryCount + 1
-            task.wait(0.05)
-        end
-
-        if button then
-            local tapped = tapButton(button)
-
-            if tapped then
-                UpdateParagraph(
-                    "MODE: " .. instance.MinigameMode ..
-                    "\nKEY: [" .. key .. "] (" .. instance.CurrentKeyIndex .. "/" .. #instance.PendingKeys .. ")" ..
-                    "\nBUTTON: FOUND & TAPPED"
-                )
-            else
-                -- Button ketemu tapi gagal tap (mungkin invisible/invalid size)
-                -- Fallback ke keyboard
-                pcall(function()
-                    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode[key], false, game)
-                    task.wait(0.01)
-                    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode[key], false, game)
-                end)
-
-                UpdateParagraph(
-                    "MODE: " .. instance.MinigameMode ..
-                    "\nKEY: [" .. key .. "] (" .. instance.CurrentKeyIndex .. "/" .. #instance.PendingKeys .. ")" ..
-                    "\nBUTTON: FOUND BUT TAP FAILED - Using keyboard"
-                )
-            end
-        else
-            -- Fallback: jika button tidak ditemukan setelah retry, pakai VirtualInputManager keyboard
-            -- (beberapa executor mobile support keyboard emulation)
-            pcall(function()
-                VirtualInputManager:SendKeyEvent(true, Enum.KeyCode[key], false, game)
-                task.wait(0.01)
-                VirtualInputManager:SendKeyEvent(false, Enum.KeyCode[key], false, game)
-            end)
-
-            UpdateParagraph(
-                "MODE: " .. instance.MinigameMode ..
-                "\nKEY: [" .. key .. "] (" .. instance.CurrentKeyIndex .. "/" .. #instance.PendingKeys .. ")" ..
-                "\nBUTTON: NOT FOUND - Using keyboard fallback"
-            )
-        end
+    
+    if key and Enum.KeyCode[key] then
+        instance.LastKeyPress = now
+        instance.KeysPressed = instance.KeysPressed + 1
+        
+        pressKey(Enum.KeyCode[key])
+        task.wait(0.01)
     end
-
-    if now - instance.StateStartTime > 10 then
+    
+    if now - instance.StateStartTime > 5 then
         self:Transition(self.States.TIMEOUT, {Reason = "Execution timeout"})
     end
 end
@@ -640,15 +387,15 @@ end
 function MinigameStateMachine:HandleCooldown()
     local instance = self.Instance
     local cooldownDuration = 0.3
-
+    
     if instance.MinigameMode == "GASPOL" then
         cooldownDuration = 0.5
-    elseif instance.MinigameMode == "TAP" then
-        cooldownDuration = 0.3
     elseif instance.MinigameMode == "URUTAN" then
         cooldownDuration = 0.3
+    elseif instance.MinigameMode == "PENCET" then
+        cooldownDuration = 0.2
     end
-
+    
     if tick() - instance.StateStartTime > cooldownDuration then
         self:Transition(self.States.IDLE)
     end
@@ -664,7 +411,7 @@ end
 
 function MinigameStateMachine:Update()
     local state = self.Instance.CurrentState
-
+    
     if state == self.States.IDLE then
         self:HandleIdle()
     elseif state == self.States.SCANNING then
@@ -694,7 +441,7 @@ function MinigameStateMachine:GetStatus()
         TotalMinigames = instance.TotalMinigames,
         Successful = instance.SuccessfulMinigames,
         Failed = instance.FailedMinigames,
-        TapsDone = instance.TapsDone,
+        KeysPressed = instance.KeysPressed,
         SessionTime = tick() - instance.SessionStart
     }
 end
@@ -708,7 +455,7 @@ function MinigameStateMachine:Reset()
     instance.ProcessedTexts = {}
     instance.PendingKeys = {}
     instance.CurrentKeyIndex = 0
-    instance.LastTapTime = 0
+    instance.LastKeyPress = 0
     instance.SessionStart = 0
     instance.MinigameMode = ""
 end
@@ -775,13 +522,13 @@ local function Countdown(seconds, label)
 end
 
 local function GetMasjidTarget()
-    local playerGui = player:FindFirstChild("PlayerGui")
-    if not playerGui then return nil end
+    local gui = player:FindFirstChild("PlayerGui")
+    if not gui then return nil end
 
     local masjid = false
     local studs = ""
 
-    for _, v in ipairs(playerGui:GetDescendants()) do
+    for _, v in ipairs(gui:GetDescendants()) do
         if v:IsA("TextLabel") then
             local t = v.Text
             if t and t ~= "" then
@@ -841,7 +588,7 @@ local function IsInVehicle()
 end
 
 -- ============================================
--- MAIN FARMING LOOP (AUTO MASJID + STAY IN VEHICLE)
+-- MAIN FARMING LOOP (AUTO MASJID + STAY ON IN VEHICLE)
 -- ============================================
 local function startAutoCow()
     task.spawn(function()
@@ -850,232 +597,153 @@ local function startAutoCow()
             teleportToFarm()
             task.wait(1)
         end
-
+        
         while AutoSapi do
             pcall(function()
                 -- ====== MASJID DETECTION (WORKS EVEN IN VEHICLE) ======
                 if not MasjidCooldown then
                     local masjidTarget = GetMasjidTarget()
-
+                    
                     if masjidTarget then
                         MasjidCooldown = true
-
+                        
                         SafeUI("MASJID TERDETEKSI: " .. masjidTarget.Name)
-
+                        
                         Rayfield:Notify({
                             Title = "AUTO MASJID",
                             Content = "Menuju " .. masjidTarget.Name,
                             Duration = 3,
                             Image = "map"
                         })
-
+                        
                         -- Countdown & teleport
                         Countdown(masjidTarget.Delay, "MENUJU " .. masjidTarget.Name)
                         Teleport(masjidTarget.CFrame, masjidTarget.Name)
-
+                        
                         SafeUI("SAMPAI: " .. masjidTarget.Name .. "\nRESUME FARMING...")
-
+                        
                         task.wait(2)
-
+                        
                         -- Reset cooldown after 30 seconds
                         task.spawn(function()
                             task.wait(30)
                             MasjidCooldown = false
                         end)
-
+                        
                         return -- skip this iteration, continue loop
                     end
                 end
-
+                
                 -- ====== SKIP COW FARMING IF IN VEHICLE ======
                 if IsInVehicle() then
                     UpdateParagraph("DI DALAM KENDARAAN\nMENUNGGU... (Masjid scan aktif)")
                     task.wait(2)
                     return
                 end
-
+                
                 -- ====== NORMAL COW FARMING ======
                 local cow = GetNearestCow()
-
+                
                 if not cow then
                     UpdateParagraph("Mencari sapi...")
                     task.wait(1)
                     return
                 end
-
+                
                 local success = moveToCow(cow)
-
+                
                 if success then
                     task.wait(0.2)
-
-                    -- ANDROID: Tekan tombol Interact (biasanya E di mobile juga)
-                    -- Cari tombol Interact di GUI, kalau tidak ada pakai keyboard fallback
-                    local interactBtn = findButtonByText("E")
-                    if interactBtn then
-                        tapButton(interactBtn)
-                    else
-                        pcall(function()
-                            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
-                            task.wait(0.01)
-                            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
-                        end)
-                    end
-
+                    pressKey(Enum.KeyCode.E)
                     task.wait(0.8)
-
-                    -- ====== ANDROID MINIGAME HANDLER ======
-                    local minigameTimeout = tick() + 10
-
+                    
+                    local minigameTimeout = tick() + 8
+                    
                     MinigameStateMachine:Reset()
-
-                    while tick() < minigameTimeout and AutoSapi do
+                    MinigameStateMachine:Transition(MinigameStateMachine.States.IDLE)
+                    
+                    while AutoSapi and tick() < minigameTimeout do
                         MinigameStateMachine:Update()
-
+                        
                         local status = MinigameStateMachine:GetStatus()
-
-                        if status.State == "COMPLETED" or status.State == "COOLDOWN" then
+                        
+                        if status.State == "IDLE" and status.PreviousState == "COOLDOWN" then
                             break
                         end
-
-                        task.wait(0.01)
+                        
+                        if status.State == "TIMEOUT" then
+                            break
+                        end
+                        
+                        if status.State ~= "IDLE" and status.State ~= "SCANNING" then
+                            UpdateParagraph(string.format("Minigame %s | %s | %s",
+                                status.Mode,
+                                status.State,
+                                status.Progress
+                            ))
+                        end
+                        
+                        task.wait(0.05)
                     end
-
-                    -- Cooldown setelah minigame
-                    task.wait(0.5)
+                    
+                    local finalStatus = MinigameStateMachine:GetStatus()
+                    if finalStatus.State == "COMPLETED" or 
+                       (finalStatus.PreviousState == "COOLDOWN" and finalStatus.State == "IDLE") then
+                        UpdateParagraph("Minigame selesai!")
+                    else
+                        UpdateParagraph("Minigame timeout")
+                    end
                 end
             end)
-
-            task.wait(0.05)
+            
+            task.wait(0.3)
         end
     end)
 end
 
 -- ============================================
--- TOGGLE BUTTON
+-- VEHICLE SEAT MONITOR - TOGGLE STAYS ON
 -- ============================================
-Tab:CreateToggle({
-    Name = "Auto Sapi (Android)",
-    CurrentValue = false,
-    Callback = function(Value)
-        AutoSapi = Value
-        if AutoSapi then
-            Rayfield:Notify({
-                Title = "ANDROID AUTO SAPI",
-                Content = "Minigame handler aktif (Tap GUI Mode)",
-                Duration = 3,
-                Image = "smartphone"
-            })
-            startAutoCow()
-        else
-            UpdateParagraph("AUTO SAPI DIMATIKAN")
-            MinigameStateMachine:Reset()
+task.spawn(function()
+    while true do
+        task.wait(1)
+        
+        if not AutoSapi then continue end
+        
+        local character = player.Character
+        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+        
+        if humanoid and humanoid.SeatPart then
+            -- Player is in a vehicle - just notify, DON'T turn off
+            SafeUI("DI DALAM KENDARAAN\nTOGGLE TETAP ON | MASJID SCAN AKTIF")
         end
-    end,
-})
-
--- ============================================
--- INFO SECTION
--- ============================================
-Tab:CreateSection("INFO ANDROID")
-
-Tab:CreateParagraph({
-    Title = "CARA KERJA ANDROID",
-    Content = "Script ini akan:\n" ..
-              "1. Scan GUI di layar untuk deteksi minigame\n" ..
-              "2. Cari tombol GUI yang sesuai (E, F, R, dll)\n" ..
-              "3. Melakukan VIRTUAL TAP pada tombol\n" ..
-              "\nMode yang didukung:\n" ..
-              "• GASPOL: Gaspol [F] → Tap tombol F berulang\n" ..
-              "• TAP: Tap [R] → Tap tombol R sekali\n" ..
-              "• URUTAN: A→W→S→R → Tap sesuai urutan\n" ..
-              "\nJika tombol tidak ditemukan, akan pakai keyboard fallback."
-})
-
--- ============================================
--- TEST & DEBUG BUTTONS
--- ============================================
-Tab:CreateSection("TEST & DEBUG")
-
-Tab:CreateButton({
-    Name = "Test Tap Tombol E",
-    Callback = function()
-        local btn = findButtonByText("E")
-        if btn then
-            local tapped = tapButton(btn)
-            Rayfield:Notify({
-                Title = "TEST TAP",
-                Content = tapped and "Tombol E berhasil di-tap!" or "Tombol E ditemukan tapi gagal tap",
-                Duration = 2,
-                Image = tapped and "check" or "alert-triangle"
-            })
-        else
-            Rayfield:Notify({
-                Title = "TEST TAP",
-                Content = "Tombol E TIDAK ditemukan di layar",
-                Duration = 2,
-                Image = "x"
-            })
-        end
-    end,
-})
-
-Tab:CreateButton({
-    Name = "Scan Buttons di Layar",
-    Callback = function()
-        local buttons = findAllVisibleButtons()
-        local btnList = ""
-
-        for _, info in ipairs(buttons) do
-            btnList = btnList .. "[" .. info.Text .. "] " .. info.Type .. "\n"
-        end
-
-        if btnList == "" then
-            btnList = "Tidak ada button A-Z yang ditemukan"
-        end
-
-        Rayfield:Notify({
-            Title = "SCAN RESULT",
-            Content = "Ditemukan " .. #buttons .. " buttons",
-            Duration = 3,
-            Image = "search"
-        })
-
-        -- Show in paragraph
-        StatsParagraph:Set({
-            Title = "BUTTONS DI LAYAR",
-            Content = btnList:sub(1, 1000) -- limit length
-        })
-    end,
-})
-
--- Stats paragraph
-local StatsParagraph = Tab:CreateParagraph({
-    Title = "STATISTIK MINIGAME",
-    Content = "Total: 0 | Berhasil: 0 | Gagal: 0"
-})
-
--- Update stats periodically
- task.spawn(function()
-    while task.wait(1) do
-        local s = MinigameStateMachine:GetStatus()
-        StatsParagraph:Set({
-            Title = "STATISTIK MINIGAME",
-            Content = "Total: " .. s.TotalMinigames ..
-                      " | Berhasil: " .. s.Successful ..
-                      " | Gagal: " .. s.Failed ..
-                      "\nState: " .. s.State ..
-                      " | Mode: " .. s.Mode ..
-                      " | Tap: " .. s.TapsDone
-        })
     end
 end)
 
 -- ============================================
--- INITIAL NOTIFY
+-- AUTO SAPI TOGGLE (SINGLE TOGGLE - STAYS ON)
 -- ============================================
-Rayfield:Notify({
-    Title = "MARSKIEEE_MMX",
-    Content = "Versi Android loaded! Support: Gaspol, Tap, Urutan",
-    Duration = 4,
-    Image = "smartphone"
+local AutoToggle
+
+AutoToggle = Tab:CreateToggle({
+    Name = "Start To Quest",
+    CurrentValue = false,
+    Flag = "AutoSapiToggle",
+    
+    Callback = function(Value)
+        AutoSapi = Value
+        
+        Rayfield:Notify({
+            Title = "AUTO FARMING",
+            Content = Value and "AUTO ON (Sapi + Masjid)" or "AUTO OFF",
+            Duration = 3,
+            Image = "keyboard"
+        })
+        
+        if Value then
+            startAutoCow()
+        end
+    end,
 })
+
+_G.AutoSapiToggle = AutoToggle

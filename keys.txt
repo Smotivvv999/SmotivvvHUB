@@ -36,7 +36,7 @@ local gui = player:WaitForChild("PlayerGui")
 -- SETTINGS
 -- ============================================
 local AutoSapi = false
-local KEY_DELAY = 0.007
+local KEY_DELAY = 0.001
 
 local FARM_POSITION = Vector3.new(-3760.887939, -77.642609, -23892.484375)
 local SEARCH_RADIUS = 300
@@ -56,12 +56,23 @@ local function UpdateParagraph(text)
     })
 end
 
+-- Throttled UI update (max 6-7x per detik)
+local lastUI = ""
+local lastUIUpdate = 0
+local function SafeUI(text)
+    if text == lastUI then return end
+    lastUI = text
+    local now = tick()
+    if now - lastUIUpdate < 0.15 then return end
+    lastUIUpdate = now
+    UpdateParagraph(text)
+end
+
 -- ============================================
 -- PRESS KEY
 -- ============================================
 local function pressKey(key)
     VirtualInputManager:SendKeyEvent(true, key, false, game)
-    task.wait(0.01)
     VirtualInputManager:SendKeyEvent(false, key, false, game)
 end
 
@@ -87,21 +98,18 @@ local function teleportToFarm()
 end
 
 -- ============================================
--- OPTIMIZED COW FINDER (REGION3)
+-- COW FINDER (1.5s CACHE)
 -- ============================================
 local CowCache = {}
 local NextScan = 0
 
 local function RefreshCowCache()
     table.clear(CowCache)
-    
     local region = Region3.new(
         FARM_POSITION - Vector3.new(SEARCH_RADIUS, 50, SEARCH_RADIUS),
         FARM_POSITION + Vector3.new(SEARCH_RADIUS, 50, SEARCH_RADIUS)
     )
-    
     local parts = Workspace:FindPartsInRegion3(region, nil, 500)
-    
     for _, part in ipairs(parts) do
         local name = part.Name:lower()
         if name:find("sapi") or name:find("cow") then
@@ -115,25 +123,20 @@ local function GetNearestCow()
     if not character then return nil end
     local hrp = character:FindFirstChild("HumanoidRootPart")
     if not hrp then return nil end
-    
     if tick() > NextScan then
         RefreshCowCache()
-        NextScan = tick() + 5
+        NextScan = tick() + 1.5
     end
-    
-    local nearest = nil
-    local closest = math.huge
-    
+    local nearest, closest = nil, math.huge
     for _, part in ipairs(CowCache) do
         if part and part.Parent then
-            local distance = (hrp.Position - part.Position).Magnitude
-            if distance < closest and distance <= SEARCH_RADIUS then
-                closest = distance
+            local dist = (hrp.Position - part.Position).Magnitude
+            if dist < closest and dist <= SEARCH_RADIUS then
+                closest = dist
                 nearest = part
             end
         end
     end
-    
     return nearest
 end
 
@@ -145,338 +148,200 @@ local function moveToCow(cowPart)
     if not character then return false end
     local hrp = character:FindFirstChild("HumanoidRootPart")
     if not hrp or not cowPart then return false end
-    
     local targetPos = cowPart.Position + Vector3.new(0, 0, 2.5)
     local distance = (hrp.Position - targetPos).Magnitude
-    
-    if distance > 4 then
+    if distance > 2 then
         hrp.CFrame = CFrame.new(targetPos, cowPart.Position)
-        hrp.AssemblyLinearVelocity = Vector3.zero
-        hrp.AssemblyAngularVelocity = Vector3.zero
     end
-    
     return true
 end
 
 -- ============================================
--- MINIGAME STATE MACHINE
+-- MINIGAME HANDLER (EVENT-DRIVEN, 3-STATE)
 -- ============================================
-local MinigameStateMachine = {
-    States = {
-        IDLE = "IDLE",
-        SCANNING = "SCANNING",
-        DETECTED = "DETECTED",
-        PROCESSING = "PROCESSING",
-        EXECUTING = "EXECUTING",
-        COOLDOWN = "COOLDOWN",
-        TIMEOUT = "TIMEOUT",
-        COMPLETED = "COMPLETED"
-    },
-    Instance = {
-        CurrentState = "IDLE",
-        PreviousState = "IDLE",
-        StateStartTime = 0,
-        StateData = {},
-        ProcessedTexts = {},
-        PendingKeys = {},
-        CurrentKeyIndex = 0,
-        LastKeyPress = 0,
-        SessionStart = 0,
-        MinigameMode = "",
-        TotalMinigames = 0,
-        SuccessfulMinigames = 0,
-        FailedMinigames = 0,
-        KeysPressed = 0
-    }
+local MinigameHandler = {
+    State = "IDLE",       -- IDLE, DETECTED, EXECUTING
+    PendingKeys = {},
+    CurrentIndex = 0,
+    LastPress = 0,
+    CurrentMode = "",
+    ProcessedTexts = {},
+    Stats = {Total = 0, Success = 0, Failed = 0}
 }
 
-function MinigameStateMachine:Transition(newState, data)
-    local instance = self.Instance
-    instance.PreviousState = instance.CurrentState
-    instance.CurrentState = newState
-    instance.StateStartTime = tick()
-    instance.StateData = data or {}
-    
-    if newState == self.States.SCANNING then
-        instance.SessionStart = tick()
-        instance.ProcessedTexts = {}
-    elseif newState == self.States.DETECTED then
-        instance.MinigameMode = data.Mode or "UNKNOWN"
-        instance.PendingKeys = data.Keys or {}
-        instance.CurrentKeyIndex = 0
-        instance.TotalMinigames = instance.TotalMinigames + 1
-    elseif newState == self.States.EXECUTING then
-        instance.LastKeyPress = tick()
-    elseif newState == self.States.COMPLETED then
-        instance.SuccessfulMinigames = instance.SuccessfulMinigames + 1
-    elseif newState == self.States.TIMEOUT then
-        instance.FailedMinigames = instance.FailedMinigames + 1
-    elseif newState == self.States.IDLE then
-        instance.PendingKeys = {}
-        instance.CurrentKeyIndex = 0
-        instance.MinigameMode = ""
-    end
-    return true
+function MinigameHandler:Reset()
+    self.State = "IDLE"
+    self.PendingKeys = {}
+    self.CurrentIndex = 0
+    self.LastPress = 0
+    self.CurrentMode = ""
 end
 
-function MinigameStateMachine:HandleIdle()
-    if tick() - self.Instance.StateStartTime > 0.1 then
-        self:Transition(self.States.SCANNING)
-    end
-end
+function MinigameHandler:Execute()
+    if self.State ~= "DETECTED" then return end
+    self.State = "EXECUTING"
+    self.Stats.Total += 1
+    local startTime = tick()
 
-function MinigameStateMachine:HandleScanning()
-    local instance = self.Instance
-    local labels = gui:GetDescendants()
-    local detectedMinigame = nil
-    
-    for i = 1, #labels do
-        local v = labels[i]
-        
-        if not v:IsA("TextLabel") then continue end
-        if not v.Visible then continue end
-        
-        local raw = v.Text
-        if raw == "" then continue end
-        
-        local text = cleanText(raw)
-        if text == "" then continue end
-        
-        if instance.ProcessedTexts[text] and tick() - instance.ProcessedTexts[text] < 0.15 then
+    while self.State == "EXECUTING" do
+        local now = tick()
+        if now - self.LastPress < KEY_DELAY then
+            task.wait()
             continue
         end
-        
-        instance.ProcessedTexts[text] = tick()
-        
-        -- Mode URUTAN
-        if text:find("URUTAN") then
-            local result = ""
-            for letter in text:gmatch("%u") do
-                if Enum.KeyCode[letter] then
-                    result = result .. letter
-                end
-            end
-            
-            result = result:gsub("URUTAN", "")
-            
-            if #result > 0 then
-                detectedMinigame = {
-                    Mode = "URUTAN",
-                    Key = result:sub(1, 1),
-                    Amount = #result,
-                    Keys = {},
-                    RawText = text
-                }
-                
-                for x = 1, #result do
-                    table.insert(detectedMinigame.Keys, result:sub(x, x))
-                end
-                
-                break
-            end
+
+        local key = self.PendingKeys[self.CurrentIndex + 1]
+        if not key then
+            self.Stats.Success += 1
+            self:Reset()
+            return
         end
-        
-        -- Mode GASPOL
-        if text:lower():find("gaspol") then
-            local key = text:match("%[([A-Z])%]")
-            local amount = tonumber(text:match("x(%d+)"))
-            
-            if key and amount and Enum.KeyCode[key] then
-                amount = math.clamp(amount, 1, 30)
-                
-                detectedMinigame = {
-                    Mode = "GASPOL",
-                    Key = key,
-                    Amount = amount,
-                    Keys = {},
-                    RawText = text
-                }
-                
-                for x = 1, amount do
-                    table.insert(detectedMinigame.Keys, key)
-                end
-                
-                break
-            end
+
+        if Enum.KeyCode[key] then
+            self.CurrentIndex += 1
+            self.LastPress = now
+            pressKey(Enum.KeyCode[key])
         end
-        
-        -- Mode PENCET
-        if text:lower():find("pencet") then
-            local key = text:match("%[([A-Z])%]")
-            
-            if key and Enum.KeyCode[key] then
-                detectedMinigame = {
-                    Mode = "PENCET",
-                    Key = key,
-                    Amount = 1,
-                    Keys = {key},
-                    RawText = text
-                }
-                
-                break
-            end
+
+        if now - startTime > 2 then
+            self.Stats.Failed += 1
+            self:Reset()
+            return
         end
+
+        task.wait()
     end
-    
-    for txt, time in pairs(instance.ProcessedTexts) do
-        if tick() - time > 2 then
-            instance.ProcessedTexts[txt] = nil
-        end
-    end
-    
-    if detectedMinigame then
-        self:Transition(self.States.DETECTED, detectedMinigame)
-        return true
-    end
-    
-    if tick() - instance.StateStartTime > 3 then
-        self:Transition(self.States.TIMEOUT, {Reason = "No minigame detected"})
-    end
-    
-    return false
 end
 
-function MinigameStateMachine:HandleDetected()
-    local instance = self.Instance
-    if not instance.StateData or not instance.StateData.Keys then
-        self:Transition(self.States.TIMEOUT, {Reason = "Invalid minigame data"})
+-- Parse text and trigger minigame instantly
+local function ProcessMinigameText(obj)
+    if not obj:IsA("TextLabel") then return end
+    if not obj.Visible then return end
+    if obj.Text == "" then return end
+
+    local text = cleanText(obj.Text)
+    if text == "" then return end
+
+    -- Duplicate filter (0.01s)
+    if MinigameHandler.ProcessedTexts[text] and tick() - MinigameHandler.ProcessedTexts[text] < 0.01 then
         return
     end
-    
-    instance.PendingKeys = instance.StateData.Keys
-    instance.CurrentKeyIndex = 0
-    self:Transition(self.States.PROCESSING)
-end
+    MinigameHandler.ProcessedTexts[text] = tick()
 
-function MinigameStateMachine:HandleProcessing()
-    if tick() - self.Instance.StateStartTime > 0.05 then
-        self:Transition(self.States.EXECUTING)
+    -- Only process if IDLE
+    if MinigameHandler.State ~= "IDLE" then return end
+
+    local detected = nil
+
+    -- Mode URUTAN
+    if text:find("URUTAN") then
+        local result = ""
+        for letter in text:gmatch("%u") do
+            if Enum.KeyCode[letter] then
+                result = result .. letter
+            end
+        end
+        result = result:gsub("URUTAN", "")
+        if #result > 0 then
+            detected = {Mode = "URUTAN", Keys = {}}
+            for i = 1, #result do
+                table.insert(detected.Keys, result:sub(i, i))
+            end
+        end
+
+    -- Mode GASPOL
+    elseif text:lower():find("gaspol") then
+        local key = text:match("%[([A-Z])%]")
+        local amount = tonumber(text:match("x(%d+)"))
+        if key and amount and Enum.KeyCode[key] then
+            amount = math.clamp(amount, 1, 30)
+            detected = {Mode = "GASPOL", Keys = {}}
+            for i = 1, amount do
+                table.insert(detected.Keys, key)
+            end
+        end
+
+    -- Mode PENCET
+    elseif text:lower():find("pencet") then
+        local key = text:match("%[([A-Z])%]")
+        if key and Enum.KeyCode[key] then
+            detected = {Mode = "PENCET", Keys = {key}}
+        end
+    end
+
+    if detected then
+        MinigameHandler.State = "DETECTED"
+        MinigameHandler.PendingKeys = detected.Keys
+        MinigameHandler.CurrentMode = detected.Mode
+        MinigameHandler.CurrentIndex = 0
+        MinigameHandler.LastPress = 0
+        task.spawn(function()
+            MinigameHandler:Execute()
+        end)
     end
 end
 
-function MinigameStateMachine:HandleExecuting()
-    local instance = self.Instance
-    local now = tick()
-    
-    if now - instance.LastKeyPress < 0.015 then
-        return
+-- Setup event listeners for instant detection
+local function SetupMinigameListeners()
+    for _, v in ipairs(gui:GetDescendants()) do
+        if v:IsA("TextLabel") then
+            v:GetPropertyChangedSignal("Text"):Connect(function()
+                ProcessMinigameText(v)
+            end)
+            v:GetPropertyChangedSignal("Visible"):Connect(function()
+                if v.Visible then ProcessMinigameText(v) end
+            end)
+        end
     end
-    
-    instance.CurrentKeyIndex = instance.CurrentKeyIndex + 1
-    
-    if instance.CurrentKeyIndex > #instance.PendingKeys then
-        self:Transition(self.States.COMPLETED)
-        return
-    end
-    
-    local key = instance.PendingKeys[instance.CurrentKeyIndex]
-    
-    if key and Enum.KeyCode[key] then
-        instance.LastKeyPress = now
-        instance.KeysPressed = instance.KeysPressed + 1
-        
-        pressKey(Enum.KeyCode[key])
-        task.wait(0.01)
-    end
-    
-    if now - instance.StateStartTime > 5 then
-        self:Transition(self.States.TIMEOUT, {Reason = "Execution timeout"})
-    end
+    gui.DescendantAdded:Connect(function(child)
+        if child:IsA("TextLabel") then
+            child:GetPropertyChangedSignal("Text"):Connect(function()
+                ProcessMinigameText(child)
+            end)
+            child:GetPropertyChangedSignal("Visible"):Connect(function()
+                if child.Visible then ProcessMinigameText(child) end
+            end)
+        end
+    end)
 end
 
-function MinigameStateMachine:HandleCooldown()
-    local instance = self.Instance
-    local cooldownDuration = 0.3
-    
-    if instance.MinigameMode == "GASPOL" then
-        cooldownDuration = 0.5
-    elseif instance.MinigameMode == "URUTAN" then
-        cooldownDuration = 0.3
-    elseif instance.MinigameMode == "PENCET" then
-        cooldownDuration = 0.2
+-- Cleanup processed texts
+task.spawn(function()
+    while true do
+        task.wait(5)
+        local now = tick()
+        for txt, time in pairs(MinigameHandler.ProcessedTexts) do
+            if now - time > 2 then
+                MinigameHandler.ProcessedTexts[txt] = nil
+            end
+        end
     end
-    
-    if tick() - instance.StateStartTime > cooldownDuration then
-        self:Transition(self.States.IDLE)
+end)
+
+-- Minigame status display
+task.spawn(function()
+    while true do
+        task.wait(0.15)
+        if MinigameHandler.State ~= "IDLE" then
+            SafeUI(string.format("Minigame %s | %s | %d/%d",
+                MinigameHandler.CurrentMode,
+                MinigameHandler.State,
+                MinigameHandler.CurrentIndex,
+                #MinigameHandler.PendingKeys
+            ))
+        end
     end
-end
-
-function MinigameStateMachine:HandleCompleted()
-    self:Transition(self.States.COOLDOWN)
-end
-
-function MinigameStateMachine:HandleTimeout()
-    self:Transition(self.States.COOLDOWN)
-end
-
-function MinigameStateMachine:Update()
-    local state = self.Instance.CurrentState
-    
-    if state == self.States.IDLE then
-        self:HandleIdle()
-    elseif state == self.States.SCANNING then
-        self:HandleScanning()
-    elseif state == self.States.DETECTED then
-        self:HandleDetected()
-    elseif state == self.States.PROCESSING then
-        self:HandleProcessing()
-    elseif state == self.States.EXECUTING then
-        self:HandleExecuting()
-    elseif state == self.States.COOLDOWN then
-        self:HandleCooldown()
-    elseif state == self.States.COMPLETED then
-        self:HandleCompleted()
-    elseif state == self.States.TIMEOUT then
-        self:HandleTimeout()
-    end
-end
-
-function MinigameStateMachine:GetStatus()
-    local instance = self.Instance
-    return {
-        State = instance.CurrentState,
-        PreviousState = instance.PreviousState,
-        Mode = instance.MinigameMode,
-        Progress = instance.CurrentKeyIndex .. "/" .. #instance.PendingKeys,
-        TotalMinigames = instance.TotalMinigames,
-        Successful = instance.SuccessfulMinigames,
-        Failed = instance.FailedMinigames,
-        KeysPressed = instance.KeysPressed,
-        SessionTime = tick() - instance.SessionStart
-    }
-end
-
-function MinigameStateMachine:Reset()
-    local instance = self.Instance
-    instance.CurrentState = self.States.IDLE
-    instance.PreviousState = self.States.IDLE
-    instance.StateStartTime = 0
-    instance.StateData = {}
-    instance.ProcessedTexts = {}
-    instance.PendingKeys = {}
-    instance.CurrentKeyIndex = 0
-    instance.LastKeyPress = 0
-    instance.SessionStart = 0
-    instance.MinigameMode = ""
-end
+end)
 
 -- ============================================
--- MASJID SYSTEM (AUTO INTEGRATED)
+-- MASJID SYSTEM
 -- ============================================
 local MasjidCooldown = false
-local lastUI = ""
-
-local function SafeUI(text)
-    if text == lastUI then return end
-    lastUI = text
-    UpdateParagraph(text)
-end
 
 local function Teleport(targetCFrame, placeName)
     local character = player.Character or player.CharacterAdded:Wait()
     local hrp = character:WaitForChild("HumanoidRootPart", 10)
     local humanoid = character:WaitForChild("Humanoid", 10)
-
     if not hrp or not humanoid then return end
 
     local seat = humanoid.SeatPart
@@ -496,7 +361,6 @@ local function Teleport(targetCFrame, placeName)
     hrp.AssemblyAngularVelocity = Vector3.zero
 
     SafeUI("TELEPORT KE " .. placeName)
-
     Rayfield:Notify({
         Title = "Teleport",
         Content = "Berhasil ke " .. placeName,
@@ -511,33 +375,24 @@ local function Countdown(seconds, label)
         local barLength = 20
         local filled = math.floor(progress * barLength)
         local bar = string.rep("█", filled) .. string.rep("░", barLength - filled)
-
-        SafeUI(
-            label .. "\n[" .. bar .. "] " ..
-            math.floor(progress * 100) .. "% (" .. i .. "s)"
-        )
-
+        SafeUI(label .. "\n[" .. bar .. "] " .. math.floor(progress * 100) .. "% (" .. i .. "s)")
         task.wait(1)
     end
 end
 
 local function GetMasjidTarget()
-    local gui = player:FindFirstChild("PlayerGui")
-    if not gui then return nil end
+    local pg = player:FindFirstChild("PlayerGui")
+    if not pg then return nil end
 
-    local masjid = false
-    local studs = ""
-
-    for _, v in ipairs(gui:GetDescendants()) do
+    local masjid, studs = false, ""
+    for _, v in ipairs(pg:GetDescendants()) do
         if v:IsA("TextLabel") then
             local t = v.Text
             if t and t ~= "" then
                 t = string.lower(t)
-
                 if not masjid and string.find(t, "masjid") then
                     masjid = true
                 end
-
                 if studs == "" and string.find(t, "studs") then
                     studs = t
                 end
@@ -546,38 +401,22 @@ local function GetMasjidTarget()
     end
 
     if not masjid then return nil end
-
     SafeUI("MASJID TERDETEKSI\nDISTANCE: " .. studs)
 
     if string.find(studs, "3%.0k") then
-        return {
-            Name = "MASJID 3K",
-            Delay = 15,
-            CFrame = CFrame.new(-4035.952148, -79.151535, -26729.810547)
-        }
+        return {Name = "MASJID 3K", Delay = 15, CFrame = CFrame.new(-4035.952148, -79.151535, -26729.810547)}
     end
-
     if string.find(studs, "9%.3k") then
-        return {
-            Name = "MASJID 9K",
-            Delay = 25,
-            CFrame = CFrame.new(-2842.638672, -38.547020, -14443.070312)
-        }
+        return {Name = "MASJID 9K", Delay = 25, CFrame = CFrame.new(-2842.638672, -38.547020, -14443.070312)}
     end
-
     if string.find(studs, "23%.8k") then
-        return {
-            Name = "MASJID 23K",
-            Delay = 55,
-            CFrame = CFrame.new(60.027203, 3.475821, -225.967621)
-        }
+        return {Name = "MASJID 23K", Delay = 50, CFrame = CFrame.new(60.027203, 3.475821, -225.967621)}
     end
-
     return nil
 end
 
 -- ============================================
--- CHECK IF PLAYER IS IN VEHICLE/SEAT
+-- VEHICLE CHECK
 -- ============================================
 local function IsInVehicle()
     local character = player.Character
@@ -588,140 +427,100 @@ local function IsInVehicle()
 end
 
 -- ============================================
--- MAIN FARMING LOOP (AUTO MASJID + STAY ON IN VEHICLE)
+-- MASJID DETECTION THREAD (INDEPENDENT)
+-- ============================================
+task.spawn(function()
+    while true do
+        task.wait(0.5)
+        if not AutoSapi then continue end
+        if MasjidCooldown then continue end
+
+        local target = GetMasjidTarget()
+        if target then
+            MasjidCooldown = true
+            SafeUI("MASJID TERDETEKSI: " .. target.Name)
+            Rayfield:Notify({
+                Title = "AUTO MASJID",
+                Content = "Menuju " .. target.Name,
+                Duration = 3,
+                Image = "map"
+            })
+
+            Countdown(target.Delay, "MENUJU " .. target.Name)
+            Teleport(target.CFrame, target.Name)
+            SafeUI("SAMPAI: " .. target.Name .. "\nRESUME FARMING...")
+            task.wait(2)
+
+            task.spawn(function()
+                task.wait(30)
+                MasjidCooldown = false
+            end)
+        end
+    end
+end)
+
+-- ============================================
+-- MAIN FARMING LOOP
 -- ============================================
 local function startAutoCow()
     task.spawn(function()
-        -- Only teleport to farm if not in vehicle
         if not IsInVehicle() then
             teleportToFarm()
             task.wait(1)
         end
-        
+
         while AutoSapi do
-            pcall(function()
-                -- ====== MASJID DETECTION (WORKS EVEN IN VEHICLE) ======
-                if not MasjidCooldown then
-                    local masjidTarget = GetMasjidTarget()
-                    
-                    if masjidTarget then
-                        MasjidCooldown = true
-                        
-                        SafeUI("MASJID TERDETEKSI: " .. masjidTarget.Name)
-                        
-                        Rayfield:Notify({
-                            Title = "AUTO MASJID",
-                            Content = "Menuju " .. masjidTarget.Name,
-                            Duration = 3,
-                            Image = "map"
-                        })
-                        
-                        -- Countdown & teleport
-                        Countdown(masjidTarget.Delay, "MENUJU " .. masjidTarget.Name)
-                        Teleport(masjidTarget.CFrame, masjidTarget.Name)
-                        
-                        SafeUI("SAMPAI: " .. masjidTarget.Name .. "\nRESUME FARMING...")
-                        
-                        task.wait(2)
-                        
-                        -- Reset cooldown after 30 seconds
-                        task.spawn(function()
-                            task.wait(30)
-                            MasjidCooldown = false
-                        end)
-                        
-                        return -- skip this iteration, continue loop
-                    end
+            -- Skip if in vehicle
+            if IsInVehicle() then
+                SafeUI("DI DALAM KENDARAAN\nTOGGLE ON | MASJID SCAN AKTIF")
+                task.wait(0.5)
+                continue
+            end
+
+            -- Skip if minigame active
+            if MinigameHandler.State ~= "IDLE" then
+                task.wait(0.1)
+                continue
+            end
+
+            local cow = GetNearestCow()
+            if not cow then
+                SafeUI("Mencari sapi...")
+                task.wait(0.5)
+                continue
+            end
+
+            local success = moveToCow(cow)
+            if success then
+                task.wait(0.2)
+                pressKey(Enum.KeyCode.E)
+                -- Wait for minigame to finish (max 3s)
+                local waitStart = tick()
+                while MinigameHandler.State ~= "IDLE" and tick() - waitStart < 3 do
+                    task.wait(0.1)
                 end
-                
-                -- ====== SKIP COW FARMING IF IN VEHICLE ======
-                if IsInVehicle() then
-                    UpdateParagraph("DI DALAM KENDARAAN\nMENUNGGU... (Masjid scan aktif)")
-                    task.wait(2)
-                    return
-                end
-                
-                -- ====== NORMAL COW FARMING ======
-                local cow = GetNearestCow()
-                
-                if not cow then
-                    UpdateParagraph("Mencari sapi...")
-                    task.wait(1)
-                    return
-                end
-                
-                local success = moveToCow(cow)
-                
-                if success then
-                    task.wait(0.2)
-                    pressKey(Enum.KeyCode.E)
-                    task.wait(0.8)
-                    
-                    local minigameTimeout = tick() + 8
-                    
-                    MinigameStateMachine:Reset()
-                    MinigameStateMachine:Transition(MinigameStateMachine.States.IDLE)
-                    
-                    while AutoSapi and tick() < minigameTimeout do
-                        MinigameStateMachine:Update()
-                        
-                        local status = MinigameStateMachine:GetStatus()
-                        
-                        if status.State == "IDLE" and status.PreviousState == "COOLDOWN" then
-                            break
-                        end
-                        
-                        if status.State == "TIMEOUT" then
-                            break
-                        end
-                        
-                        if status.State ~= "IDLE" and status.State ~= "SCANNING" then
-                            UpdateParagraph(string.format("Minigame %s | %s | %s",
-                                status.Mode,
-                                status.State,
-                                status.Progress
-                            ))
-                        end
-                        
-                        task.wait(0.05)
-                    end
-                    
-                    local finalStatus = MinigameStateMachine:GetStatus()
-                    if finalStatus.State == "COMPLETED" or 
-                       (finalStatus.PreviousState == "COOLDOWN" and finalStatus.State == "IDLE") then
-                        UpdateParagraph("Minigame selesai!")
-                    else
-                        UpdateParagraph("Minigame timeout")
-                    end
-                end
-            end)
-            
-            task.wait(0.3)
+            end
+
+            task.wait(0.1)
         end
     end)
 end
 
 -- ============================================
--- VEHICLE SEAT MONITOR - TOGGLE STAYS ON
+-- VEHICLE MONITOR
 -- ============================================
 task.spawn(function()
     while true do
         task.wait(1)
-        
         if not AutoSapi then continue end
-        
-        local character = player.Character
-        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-        
-        if humanoid and humanoid.SeatPart then
-            -- Player is in a vehicle - just notify, DON'T turn off
+        if IsInVehicle() then
             SafeUI("DI DALAM KENDARAAN\nTOGGLE TETAP ON | MASJID SCAN AKTIF")
         end
     end
 end)
 
 -- ============================================
--- AUTO SAPI TOGGLE (SINGLE TOGGLE - STAYS ON)
+-- AUTO SAPI TOGGLE
 -- ============================================
 local AutoToggle
 
@@ -729,17 +528,14 @@ AutoToggle = Tab:CreateToggle({
     Name = "Start To Quest",
     CurrentValue = false,
     Flag = "AutoSapiToggle",
-    
     Callback = function(Value)
         AutoSapi = Value
-        
         Rayfield:Notify({
             Title = "AUTO FARMING",
             Content = Value and "AUTO ON (Sapi + Masjid)" or "AUTO OFF",
             Duration = 3,
             Image = "keyboard"
         })
-        
         if Value then
             startAutoCow()
         end
@@ -747,3 +543,8 @@ AutoToggle = Tab:CreateToggle({
 })
 
 _G.AutoSapiToggle = AutoToggle
+
+-- ============================================
+-- INIT LISTENERS
+-- ============================================
+SetupMinigameListeners()
